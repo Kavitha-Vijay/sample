@@ -1,0 +1,83 @@
+using System;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace OctaneApiExample
+{
+    class Program
+    {
+        static async Task Main(string[] args)
+        {
+            // Proxy settings
+            var proxy = new WebProxy
+            {
+                Address = new Uri("http://your-proxy-address:proxy-port"),
+                BypassProxyOnLocal = false,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential("proxy-username", "proxy-password")
+            };
+
+            var httpClientHandler = new HttpClientHandler
+            {
+                Proxy = proxy,
+                PreAuthenticate = true,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential("proxy-username", "proxy-password")
+            };
+
+            // Initialize HttpClient with handler
+            using (HttpClient client = new HttpClient(httpClientHandler))
+            {
+                // Set custom headers
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));
+                client.DefaultRequestHeaders.Add("Custom-Header", "CustomHeaderValue");
+
+                // Octane API URL
+                string apiUrl = "https://octane-url/api/shared_spaces/your_shared_space_id/workspaces/your_workspace_id/tests";
+
+                // Authentication token
+                string token = "your-auth-token";
+
+                // Add authentication token to headers
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                // Prepare the XML content
+                string xmlContent = @"
+                <TestResults>
+                    <Test>
+                        <Name>Test1</Name>
+                        <Status>Passed</Status>
+                    </Test>
+                    <Test>
+                        <Name>Test2</Name>
+                        <Status>Failed</Status>
+                    </Test>
+                </TestResults>";
+
+                HttpContent content = new StringContent(xmlContent, Encoding.UTF8, "application/xml");
+
+                // Post the request
+                try
+                {
+                    HttpResponseMessage response = await client.PostAsync(apiUrl, content);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        Console.WriteLine("Test results posted successfully.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Error posting test results: {response.StatusCode} - {response.ReasonPhrase}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Exception occurred: {ex.Message}");
+                }
+            }
+        }
+    }
+}
