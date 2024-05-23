@@ -1,0 +1,201 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml.Serialization;
+
+namespace OctaneApiExample
+{
+    [XmlRoot("TestResult")]
+    public class TestResult
+    {
+        [XmlElement("Test")]
+        public List<Test> Tests { get; set; }
+    }
+
+    public class Test
+    {
+        [XmlElement("TestName")]
+        public string TestName { get; set; }
+
+        [XmlElement("Status")]
+        public string Status { get; set; }
+
+        [XmlElement("Duration")]
+        public int Duration { get; set; }
+
+        [XmlElement("RunStarted")]
+        public DateTime RunStarted { get; set; }
+    }
+
+    class Program
+    {
+        private static async Task<CookieContainer> SignInAndGetSessionCookies(HttpClientHandler handler, string username, string password)
+        {
+            // Octane sign-in API URL
+            string signInUrl = "https://octane-url/authentication/sign_in";
+
+            // Prepare the sign-in JSON content
+            string jsonContent = $"{{\"user\": \"{username}\", \"password\": \"{password}\"}}";
+            HttpContent content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+            // Initialize HttpClient with the provided handler
+            using (HttpClient client = new HttpClient(handler, false)) // `false` means HttpClientHandler is not disposed when HttpClient is disposed
+            {
+                // Send POST request to sign in
+                HttpResponseMessage response = await client.PostAsync(signInUrl, content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    // Get the session cookies from the response
+                    var cookieContainer = new CookieContainer();
+                    Uri baseAddress = new Uri("https://octane-url/");
+
+                    if (response.Headers.TryGetValues("Set-Cookie", out IEnumerable<string> cookies))
+                    {
+                        foreach (var cookie in cookies)
+                        {
+                            // Split cookie string to get individual parts
+                            var cookieParts = cookie.Split(';');
+                            foreach (var part in cookieParts)
+                            {
+                                var cookieKeyValue = part.Split(new[] { '=' }, 2);
+                                if (cookieKeyValue.Length == 2)
+                                {
+                                    cookieContainer.Add(baseAddress, new Cookie(cookieKeyValue[0].Trim(), cookieKeyValue[1].Trim()));
+                                }
+                            }
+                        }
+                        return cookieContainer;
+                    }
+                    throw new Exception("Session cookies not found in the response.");
+                }
+                else
+                {
+                    throw new Exception($"Sign-in failed: {response.StatusCode} - {response.ReasonPhrase}");
+                }
+            }
+        }
+
+        static async Task Main(string[] args)
+        {
+            // Proxy settings
+            var proxy = new WebProxy
+            {
+                Address = new Uri("http://your-proxy-address:proxy-port"),
+                BypassProxyOnLocal = false,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential("proxy-username", "proxy-password")
+            };
+
+            var httpClientHandler = new HttpClientHandler
+            {
+                Proxy = proxy,
+                PreAuthenticate = true,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential("proxy-username", "proxy-password"),
+                CookieContainer = new CookieContainer()
+            };
+
+            // User credentials for Octane sign-in
+            string username = "your-username";
+            string password = "your-password";
+
+            try
+            {
+                // Sign in and get the session cookies
+                var sessionCookies = await SignInAndGetSessionCookies(httpClientHandler, username, password);
+                httpClientHandler.CookieContainer = sessionCookies;
+
+                // Initialize HttpClient with handler
+                using (HttpClient client = new HttpClient(httpClientHandler, false)) // `false` means HttpClientHandler is not disposed when HttpClient is disposed
+                {
+                    // Set custom headers
+                    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                    client.DefaultRequestHeaders.Add("Custom-Header", "CustomHeaderValue");
+
+                    // Octane API URL to get tests
+                    string getTestsApiUrl = "https://octane-url/api/shared_spaces/your_shared_space_id/workspaces/your_workspace_id/tests";
+
+                    // Send GET request to retrieve test results
+                    HttpResponseMessage getResponse = await client.GetAsync(getTestsApiUrl);
+
+                    if (getResponse.IsSuccessStatusCode)
+                    {
+                        string getResponseData = await getResponse.Content.ReadAsStringAsync();
+                        Console.WriteLine("Test results retrieved successfully.");
+                        Console.WriteLine(getResponseData);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Error retrieving test results: {getResponse.StatusCode} - {getResponse.ReasonPhrase}");
+                        string getResponseContent = await getResponse.Content.ReadAsStringAsync();
+                        Console.WriteLine($"Response content: {getResponseContent}");
+                    }
+
+                    // Prepare the test results to be posted
+                    var testResults = new TestResult
+                    {
+                        Tests = new List<Test>
+                        {
+                            new Test
+                            {
+                                TestName = "Test1",
+                                Status = "Passed",
+                                Duration = 30,
+                                RunStarted = DateTime.UtcNow
+                            },
+                            new Test
+                            {
+                                TestName = "Test2",
+                                Status = "Failed",
+                                Duration = 45,
+                                RunStarted = DateTime.UtcNow.AddMinutes(-15)
+                            }
+                        }
+                    };
+
+                    // Serialize the test results to XML
+                    var xmlSerializer = new XmlSerializer(typeof(TestResult));
+                    string xmlContent;
+                    using (var stringWriter = new StringWriter())
+                    {
+                        xmlSerializer.Serialize(stringWriter, testResults);
+                        xmlContent = stringWriter.ToString();
+                    }
+
+                    // Convert the XML content to JSON if needed
+                    // In this example, we are assuming Octane API accepts XML in a JSON structure
+                    string jsonContent = Newtonsoft.Json.JsonConvert.SerializeObject(new { xmlContent });
+
+                    HttpContent postContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                    // Octane API URL to post test results
+                    string postTestResultsApiUrl = "https://octane-url/api/shared_spaces/your_shared_space_id/workspaces/your_workspace_id/test-results";
+
+                    // Send POST request to update test results
+                    HttpResponseMessage postResponse = await client.PostAsync(postTestResultsApiUrl, postContent);
+
+                    if (postResponse.IsSuccessStatusCode)
+                    {
+                        Console.WriteLine("Test results posted successfully.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Error posting test results: {postResponse.StatusCode} - {postResponse.ReasonPhrase}");
+                        string postResponseContent = await postResponse.Content.ReadAsStringAsync();
+                        Console.WriteLine($"Response content: {postResponseContent}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception occurred: {ex.Message}");
+            }
+        }
+    }
+}
