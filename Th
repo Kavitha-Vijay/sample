@@ -1,0 +1,154 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using System.Xml.Serialization;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+using RestSharp;
+
+[Serializable]
+[XmlRoot("test-results")]
+public class TestResults
+{
+    [XmlElement("test-case")]
+    public List<TestCase> TestCases { get; set; }
+
+    public TestResults()
+    {
+        TestCases = new List<TestCase>();
+    }
+}
+
+[Serializable]
+public class TestCase
+{
+    [XmlAttribute("id")]
+    public string Id { get; set; }
+
+    [XmlElement("name")]
+    public string Name { get; set; }
+
+    [XmlElement("status")]
+    public string Status { get; set; }
+
+    [XmlElement("duration")]
+    public string Duration { get; set; }
+
+    [XmlElement("timestamp")]
+    public string Timestamp { get; set; }
+
+    // Parameterless constructor required for serialization
+    public TestCase() { }
+
+    // Constructor with parameters
+    public TestCase(string id, string name, string status, string duration, string timestamp)
+    {
+        Id = id;
+        Name = name;
+        Status = status;
+        Duration = duration;
+        Timestamp = timestamp;
+    }
+}
+
+class Program : ITestExecutionListener
+{
+    private TestResults testResults = new TestResults();
+
+    static async Task Main(string[] args)
+    {
+        Program program = new Program();
+
+        List<Task> testTasks = new List<Task>
+        {
+            Task.Run(() => program.RunSeleniumTest("TestCase1")),
+            Task.Run(() => program.RunSeleniumTest("TestCase2")),
+            Task.Run(() => program.RunSeleniumTest("TestCase3"))
+        };
+
+        // Wait for all test tasks to complete
+        await Task.WhenAll(testTasks);
+
+        // Serialize TestResults to XML
+        XmlSerializer serializer = new XmlSerializer(typeof(TestResults));
+        StringWriter stringWriter = new StringWriter();
+        serializer.Serialize(stringWriter, program.testResults);
+        string xmlString = stringWriter.ToString();
+
+        // Print the XML string (for verification)
+        Console.WriteLine("Serialized XML:");
+        Console.WriteLine(xmlString);
+
+        // Update the test results in Octane
+        await UpdateTestResults(xmlString);
+    }
+
+    public void OnTestCompleted(string testCaseName, string testStatus, string duration)
+    {
+        string timestamp = DateTime.UtcNow.ToString("o"); // ISO 8601 format
+
+        Console.WriteLine($"{testCaseName} completed with status {testStatus} in {duration}.");
+
+        lock (testResults)
+        {
+            testResults.TestCases.Add(new TestCase(testCaseName, testCaseName, testStatus, duration, timestamp));
+        }
+    }
+
+    private void RunSeleniumTest(string testCaseName)
+    {
+        // Initialize Selenium WebDriver (Chrome)
+        IWebDriver driver = new ChromeDriver();
+
+        var startTime = DateTime.UtcNow;
+
+        try
+        {
+            driver.Navigate().GoToUrl("https://example.com");
+
+            // Simulate some Selenium actions
+            Console.WriteLine($"Running {testCaseName}...");
+
+            // Perform your Selenium test actions here
+            // For simplicity, we'll just pass all tests in this example
+            string testStatus = "Passed";
+
+            // Calculate duration
+            var duration = DateTime.UtcNow - startTime;
+
+            Console.WriteLine($"{testCaseName} completed.");
+
+            // Notify listener that the test is completed
+            OnTestCompleted(testCaseName, testStatus, duration.ToString(@"hh\:mm\:ss"));
+        }
+        finally
+        {
+            driver.Quit();
+        }
+    }
+
+    static async Task UpdateTestResults(string xmlString)
+    {
+        var client = new RestClient("https://octane-url/api/shared_spaces/your_shared_space_id/workspaces/your_workspace_id/test-results");
+        var request = new RestRequest(Method.POST);
+        request.AddHeader("Content-Type", "application/xml");
+        request.AddHeader("Authorization", "Bearer your-auth-token");
+        request.AddParameter("application/xml", xmlString, ParameterType.RequestBody);
+
+        IRestResponse response = await client.ExecuteAsync(request);
+
+        if (response.IsSuccessful)
+        {
+            Console.WriteLine("Test results posted successfully.");
+        }
+        else
+        {
+            Console.WriteLine($"Error posting test results: {response.StatusCode} - {response.StatusDescription}");
+            Console.WriteLine($"Response content: {response.Content}");
+        }
+    }
+}
+
+
+
