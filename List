@@ -1,0 +1,62 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Xml.Serialization;
+
+// Define the class representing the <test-fields> node
+[Serializable]
+[XmlRoot("test-fields")]
+public class TestFields
+{
+    [XmlElement("test-field")]
+    public List<TestField> Fields { get; set; }
+
+    // Constructor
+    public TestFields()
+    {
+        Fields = new List<TestField>();
+    }
+}
+
+// Define the class representing the <test-field> node
+[Serializable]
+public class TestField
+{
+    [XmlAttribute("type")]
+    public string Type { get; set; }
+
+    [XmlAttribute("value")]
+    public string Value { get; set; }
+
+    // Constructor
+    public TestField(string type, string value)
+    {
+        Type = type;
+        Value = value;
+    }
+
+    // Parameterless constructor required for serialization
+    public TestField() { }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        // Create an instance of TestFields
+        TestFields testFields = new TestFields();
+
+        // Add test-field nodes
+        testFields.Fields.Add(new TestField("level1", "value1"));
+        testFields.Fields.Add(new TestField("level2", "value2"));
+
+        // Serialize TestFields to XML
+        XmlSerializer serializer = new XmlSerializer(typeof(TestFields));
+        StringWriter stringWriter = new StringWriter();
+        serializer.Serialize(stringWriter, testFields);
+        string xmlString = stringWriter.ToString();
+
+        // Output the XML string
+        Console.WriteLine(xmlString);
+    }
+}
