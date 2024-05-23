@@ -1,0 +1,162 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml.Serialization;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+
+// Define the class representing the <test-results> node
+[Serializable]
+[XmlRoot("test-results")]
+public class TestResults
+{
+    [XmlElement("test-case")]
+    public List<TestCase> TestCases { get; set; }
+
+    public TestResults()
+    {
+        TestCases = new List<TestCase>();
+    }
+}
+
+// Define the class representing the <test-case> node
+[Serializable]
+public class TestCase
+{
+    [XmlAttribute("id")]
+    public string Id { get; set; }
+
+    [XmlElement("name")]
+    public string Name { get; set; }
+
+    [XmlElement("status")]
+    public string Status { get; set; }
+
+    [XmlElement("duration")]
+    public string Duration { get; set; }
+
+    [XmlElement("timestamp")]
+    public string Timestamp { get; set; }
+
+    public TestCase() { }
+
+    public TestCase(string id, string name, string status, string duration, string timestamp)
+    {
+        Id = id;
+        Name = name;
+        Status = status;
+        Duration = duration;
+        Timestamp = timestamp;
+    }
+}
+
+class Program : ITestExecutionListener
+{
+    private static TestResults testResults = new TestResults();
+    private static readonly object lockObject = new object();
+
+    static async Task Main(string[] args)
+    {
+        Program program = new Program();
+
+        List<Task> testTasks = new List<Task>
+        {
+            Task.Run(() => program.RunSeleniumTest("TestCase1")),
+            Task.Run(() => program.RunSeleniumTest("TestCase2")),
+            Task.Run(() => program.RunSeleniumTest("TestCase3"))
+        };
+
+        // Wait for all test tasks to complete
+        await Task.WhenAll(testTasks);
+
+        // Serialize TestResults to XML
+        XmlSerializer serializer = new XmlSerializer(typeof(TestResults));
+        StringWriter stringWriter = new StringWriter();
+        serializer.Serialize(stringWriter, testResults);
+        string xmlString = stringWriter.ToString();
+
+        // Print the XML string (for verification)
+        Console.WriteLine("Serialized XML:");
+        Console.WriteLine(xmlString);
+
+        // Update the test results in Octane
+        await UpdateTestResults(xmlString);
+    }
+
+    public void OnTestCompleted(string testCaseName, string testStatus, string duration)
+    {
+        string timestamp = DateTime.UtcNow.ToString("o"); // ISO 8601 format
+
+        Console.WriteLine($"{testCaseName} completed with status {testStatus} in {duration}.");
+
+        lock (lockObject)
+        {
+            testResults.TestCases.Add(new TestCase(testCaseName, testCaseName, testStatus, duration, timestamp));
+        }
+    }
+
+    private void RunSeleniumTest(string testCaseName)
+    {
+        // Initialize Selenium WebDriver (Chrome)
+        IWebDriver driver = new ChromeDriver();
+        var startTime = DateTime.UtcNow;
+
+        try
+        {
+            driver.Navigate().GoToUrl("https://example.com");
+
+            // Simulate some Selenium actions
+            Console.WriteLine($"Running {testCaseName}...");
+
+            // Perform your Selenium test actions here
+            // For simplicity, we'll just pass all tests in this example
+            string testStatus = "Passed";
+
+            // Calculate duration
+            var duration = DateTime.UtcNow - startTime;
+
+            Console.WriteLine($"{testCaseName} completed.");
+
+            // Notify listener that the test is completed
+            OnTestCompleted(testCaseName, testStatus, duration.ToString(@"hh\:mm\:ss"));
+        }
+        finally
+        {
+            driver.Quit();
+        }
+    }
+
+    static async Task UpdateTestResults(string xmlString)
+    {
+        using (HttpClient client = new HttpClient())
+        {
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "your-auth-token");
+
+            HttpContent content = new StringContent(xmlString, Encoding.UTF8, "application/xml");
+
+            HttpResponseMessage response = await client.PostAsync("https://octane-url/api/shared_spaces/your_shared_space_id/workspaces/your_workspace_id/test-results", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Test results posted successfully.");
+            }
+            else
+            {
+                Console.WriteLine($"Error posting test results: {response.StatusCode} - {response.ReasonPhrase}");
+                string responseContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Response content: {responseContent}");
+            }
+        }
+    }
+}
+
+public interface ITestExecutionListener
+{
+    void OnTestCompleted(string testCaseName, string testStatus, string duration);
+}
+
