@@ -1,0 +1,97 @@
+using System;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace OctaneApiExample
+{
+    class Program
+    {
+        private static async Task<string> GetAccessToken(HttpClient client, string clientId, string clientSecret)
+        {
+            // Octane token API URL
+            string tokenUrl = "https://octane-url/oauth/token";
+
+            // Prepare the token request content
+            var tokenRequestContent = new StringContent($"client_id={clientId}&client_secret={clientSecret}&grant_type=client_credentials", Encoding.UTF8, "application/x-www-form-urlencoded");
+
+            // Send POST request to get the access token
+            HttpResponseMessage response = await client.PostAsync(tokenUrl, tokenRequestContent);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string responseContent = await response.Content.ReadAsStringAsync();
+                dynamic json = Newtonsoft.Json.JsonConvert.DeserializeObject(responseContent);
+                return json.access_token;
+            }
+            else
+            {
+                throw new Exception($"Failed to obtain access token: {response.StatusCode} - {response.ReasonPhrase}");
+            }
+        }
+
+        static async Task Main(string[] args)
+        {
+            // Proxy settings
+            var proxy = new WebProxy
+            {
+                Address = new Uri("http://your-proxy-address:proxy-port"),
+                BypassProxyOnLocal = false,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential("proxy-username", "proxy-password")
+            };
+
+            var httpClientHandler = new HttpClientHandler
+            {
+                Proxy = proxy,
+                PreAuthenticate = true,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential("proxy-username", "proxy-password")
+            };
+
+            // Initialize HttpClient with handler
+            using (HttpClient client = new HttpClient(httpClientHandler))
+            {
+                // Get the access token using client ID and client secret
+                string clientId = "your-client-id";
+                string clientSecret = "your-client-secret";
+                string accessToken = await GetAccessToken(client, clientId, clientSecret);
+                
+                // Set the access token in the client headers
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+                // Retrieve test results using the access token
+                string apiUrl = "https://octane-url/api/shared_spaces/your_shared_space_id/workspaces/your_workspace_id/tests";
+                
+                // Set custom headers
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json")); // Assuming the response is in JSON
+                client.DefaultRequestHeaders.Add("Custom-Header", "CustomHeaderValue");
+
+                // Send GET request
+                try
+                {
+                    HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string responseData = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine("Test results retrieved successfully.");
+                        Console.WriteLine(responseData);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Error retrieving test results: {response.StatusCode} - {response.ReasonPhrase}");
+                        string responseContent = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine($"Response content: {responseContent}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Exception occurred: {ex.Message}");
+                }
+            }
+        }
+    }
+}
