@@ -1,0 +1,74 @@
+const axios = require('axios');
+const fs = require('fs');
+const { DOMParser, XMLSerializer } = require('xmldom');
+
+// Function to sign in and get session cookies
+async function signInAndGetSessionCookies() {
+    try {
+        const response = await axios.post('https://octane-url/authentication/sign_in', {
+            user: 'your-username',
+            password: 'your-password'
+        });
+
+        if (response.status === 200) {
+            const cookies = response.headers['set-cookie'];
+            return cookies;
+        } else {
+            throw new Error(`Sign-in failed: ${response.status} - ${response.statusText}`);
+        }
+    } catch (error) {
+        throw new Error(`Error signing in: ${error.message}`);
+    }
+}
+
+// Function to update test results
+async function updateTestResults() {
+    try {
+        // Sign in and get session cookies
+        const cookies = await signInAndGetSessionCookies();
+
+        // Define XML template for test results
+        const xmlTemplate = `
+        <TestResults>
+            <Test>
+                <Name>{TEST_NAME}</Name>
+                <Status>{TEST_STATUS}</Status>
+            </Test>
+        </TestResults>`;
+
+        // Load XML template
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlTemplate, 'text/xml');
+
+        // Update XML node values with actual test data
+        const testName = 'Test1';
+        const testStatus = 'Passed';
+        const nameNode = xmlDoc.getElementsByTagName('Name')[0];
+        const statusNode = xmlDoc.getElementsByTagName('Status')[0];
+        nameNode.textContent = testName;
+        statusNode.textContent = testStatus;
+
+        // Serialize updated XML to string
+        const serializer = new XMLSerializer();
+        const updatedXml = serializer.serializeToString(xmlDoc);
+
+        // Post updated XML to Octane
+        const response = await axios.post('https://octane-url/api/shared_spaces/your_shared_space_id/workspaces/your_workspace_id/test-results', updatedXml, {
+            headers: {
+                'Content-Type': 'application/xml',
+                'Cookie': cookies.join('; ')
+            }
+        });
+
+        if (response.status === 200) {
+            console.log('Test results updated successfully.');
+        } else {
+            throw new Error(`Error updating test results: ${response.status} - ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error(`Error: ${error.message}`);
+    }
+}
+
+// Call function to update test results
+updateTestResults();
