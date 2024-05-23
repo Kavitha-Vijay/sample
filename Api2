@@ -1,0 +1,124 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace OctaneApiExample
+{
+    class Program
+    {
+        private static async Task<CookieContainer> SignInAndGetSessionCookies(HttpClientHandler handler, string username, string password)
+        {
+            // Octane sign-in API URL
+            string signInUrl = "https://octane-url/authentication/sign_in";
+
+            // Prepare the sign-in JSON content
+            string jsonContent = $"{{\"user\": \"{username}\", \"password\": \"{password}\"}}";
+            HttpContent content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+            // Initialize HttpClient with the provided handler
+            using (HttpClient client = new HttpClient(handler))
+            {
+                // Send POST request to sign in
+                HttpResponseMessage response = await client.PostAsync(signInUrl, content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    // Get the session cookies from the response
+                    var cookieContainer = new CookieContainer();
+                    Uri baseAddress = new Uri("https://octane-url/");
+                    
+                    if (response.Headers.TryGetValues("Set-Cookie", out IEnumerable<string> cookies))
+                    {
+                        foreach (var cookie in cookies)
+                        {
+                            // Split cookie string to get individual parts
+                            var cookieParts = cookie.Split(';');
+                            foreach (var part in cookieParts)
+                            {
+                                var cookieKeyValue = part.Split(new[] { '=' }, 2);
+                                if (cookieKeyValue.Length == 2)
+                                {
+                                    cookieContainer.Add(baseAddress, new Cookie(cookieKeyValue[0].Trim(), cookieKeyValue[1].Trim()));
+                                }
+                            }
+                        }
+                        return cookieContainer;
+                    }
+                    throw new Exception("Session cookies not found in the response.");
+                }
+                else
+                {
+                    throw new Exception($"Sign-in failed: {response.StatusCode} - {response.ReasonPhrase}");
+                }
+            }
+        }
+
+        static async Task Main(string[] args)
+        {
+            // Proxy settings
+            var proxy = new WebProxy
+            {
+                Address = new Uri("http://your-proxy-address:proxy-port"),
+                BypassProxyOnLocal = false,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential("proxy-username", "proxy-password")
+            };
+
+            var httpClientHandler = new HttpClientHandler
+            {
+                Proxy = proxy,
+                PreAuthenticate = true,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential("proxy-username", "proxy-password"),
+                CookieContainer = new CookieContainer()
+            };
+
+            // User credentials for Octane sign-in
+            string username = "your-username";
+            string password = "your-password";
+
+            try
+            {
+                // Sign in and get the session cookies
+                var sessionCookies = await SignInAndGetSessionCookies(httpClientHandler, username, password);
+                httpClientHandler.CookieContainer = sessionCookies;
+
+                // Initialize HttpClient with handler
+                using (HttpClient client = new HttpClient(httpClientHandler))
+                {
+                    // Set custom headers
+                    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json")); // Assuming the response is in JSON
+                    client.DefaultRequestHeaders.Add("Custom-Header", "CustomHeaderValue");
+
+                    // Octane API URL to get tests
+                    string apiUrl = "https://octane-url/api/shared_spaces/your_shared_space_id/workspaces/your_workspace_id/tests";
+
+                    // Send GET request
+                    HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string responseData = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine("Test results retrieved successfully.");
+                        Console.WriteLine(responseData);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Error retrieving test results: {response.StatusCode} - {response.ReasonPhrase}");
+                        string responseContent = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine($"Response content: {responseContent}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception occurred: {ex.Message}");
+            }
+        }
+    }
+}
