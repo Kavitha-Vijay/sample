@@ -1,0 +1,49 @@
+using System;
+using System.IO;
+using System.Xml.Serialization;
+using Newtonsoft.Json;
+
+public class TestField
+{
+    [XmlAttribute("type")]
+    public string Type { get; set; }
+
+    [XmlAttribute("value")]
+    public string Value { get; set; }
+}
+
+public class Root
+{
+    [XmlElement("test-field")]
+    public TestField TestField { get; set; }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        // JSON string
+        string json = @"{
+            ""test-field"": {
+                ""type"": ""level"",
+                ""value"": ""dummy""
+            }
+        }";
+
+        // Deserialize JSON to C# object
+        Root root = JsonConvert.DeserializeObject<Root>(json);
+
+        // Update the C# object properties at runtime
+        root.TestField.Type = "newLevel";
+        root.TestField.Value = "newValue";
+
+        // Serialize the updated C# object to XML
+        XmlSerializer xmlSerializer = new XmlSerializer(typeof(Root));
+        using StringWriter textWriter = new StringWriter();
+        xmlSerializer.Serialize(textWriter, root);
+        string xml = textWriter.ToString();
+
+        // Output the updated XML string
+        Console.WriteLine(xml);
+    }
+}
