@@ -1,13 +1,12 @@
 using System;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System.Xml.Linq;
+using System.IO;
+using System.Xml.Serialization;
 
 public class TestRun
 {
     public string module { get; set; }
     public string package { get; set; }
-    public string @class { get; set; } // "@" symbol is used to escape reserved keywords
+    public string @class { get; set; }
     public string name { get; set; }
     public string duration { get; set; }
     public string status { get; set; }
@@ -48,33 +47,47 @@ public class Program
 
         try
         {
-            // Convert TestResult object to JSON string
-            string json = JsonConvert.SerializeObject(testResult);
+            // Serialize TestResult object to XML string
+            string xml;
+            using (StringWriter sw = new StringWriter())
+            {
+                XmlSerializer serializer = new XmlSerializer(typeof(TestResult));
+                serializer.Serialize(sw, testResult);
+                xml = sw.ToString();
+            }
 
-            // Deserialize JSON string to JObject
-            JObject jsonObject = JObject.Parse(json);
+            // Deserialize XML string to TestResult object
+            TestResult deserializedTestResult;
+            using (StringReader sr = new StringReader(xml))
+            {
+                XmlSerializer serializer = new XmlSerializer(typeof(TestResult));
+                deserializedTestResult = (TestResult)serializer.Deserialize(sr);
+            }
 
-            // Update values in the JObject
-            jsonObject["test_runs"]["test_run"]["module"] = "/newModule";
-            jsonObject["test_runs"]["test_run"]["package"] = "newPackage";
-            jsonObject["test_runs"]["test_run"]["class"] = "NewHelloWorldTest";
-            jsonObject["test_runs"]["test_run"]["name"] = "newTestOne";
-            jsonObject["test_runs"]["test_run"]["duration"] = "10";
-            jsonObject["test_runs"]["test_run"]["status"] = "Passed";
-            jsonObject["test_runs"]["test_run"]["started"] = "1430919290000";
+            // Update values in the TestResult object
+            deserializedTestResult.test_runs.test_run.module = "/newModule";
+            deserializedTestResult.test_runs.test_run.package = "newPackage";
+            deserializedTestResult.test_runs.test_run.@class = "NewHelloWorldTest";
+            deserializedTestResult.test_runs.test_run.name = "newTestOne";
+            deserializedTestResult.test_runs.test_run.duration = "10";
+            deserializedTestResult.test_runs.test_run.status = "Passed";
+            deserializedTestResult.test_runs.test_run.started = "1430919290000";
 
-            // Convert JObject back to JSON string
-            string updatedJson = jsonObject.ToString();
+            // Serialize updated TestResult object back to XML string
+            string updatedXml;
+            using (StringWriter sw = new StringWriter())
+            {
+                XmlSerializer serializer = new XmlSerializer(typeof(TestResult));
+                serializer.Serialize(sw, deserializedTestResult);
+                updatedXml = sw.ToString();
+            }
 
-            // Convert JSON string to XML string
-            string xml = JsonConvert.DeserializeXNode(updatedJson, "test_result").ToString();
-
-            // Output the XML string
-            Console.WriteLine(xml);
+            // Output the updated XML string
+            Console.WriteLine(updatedXml);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error updating JSON and converting to XML: {ex.Message}");
+            Console.WriteLine($"Error updating XML: {ex.Message}");
         }
     }
 }
