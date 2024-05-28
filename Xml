@@ -38,12 +38,22 @@ public class TestRun
     // Optional error node if status is "Failed" or "Skipped"
     [XmlElement("error")]
     public Error Error { get; set; }
+
+    public bool ShouldSerializeError() // Controls whether the error node should be serialized
+    {
+        return Error != null;
+    }
 }
 
 public class TestRuns
 {
     [XmlElement("test_run")]
     public List<TestRun> TestRunList { get; set; }
+
+    public bool ShouldSerializeTestRunList() // Controls whether the test_run list should be serialized
+    {
+        return TestRunList != null && TestRunList.Count > 0;
+    }
 }
 
 [XmlRoot("test_results")]
@@ -60,6 +70,21 @@ public class TestResults
 
     [XmlElement("test_runs")]
     public TestRuns TestRuns { get; set; }
+
+    public bool ShouldSerializeBacklogItems() // Controls whether the backlog_items node should be serialized
+    {
+        return BacklogItems != null && BacklogItems.BacklogItemList.Count > 0;
+    }
+
+    public bool ShouldSerializeTestFields() // Controls whether the test_fields node should be serialized
+    {
+        return TestFields != null && TestFields.TestFieldsList.Count > 0;
+    }
+
+    public bool ShouldSerializeEnvironment() // Controls whether the environment node should be serialized
+    {
+        return Environment != null;
+    }
 }
 
 public class Program
@@ -69,9 +94,8 @@ public class Program
         // Create an instance of TestResults and populate its properties
         TestResults testResults = new TestResults
         {
-            BacklogItems = new BacklogItems(),
-            TestFields = new TestFields(),
-            Environment = new Environment(),
+            // BacklogItems, TestFields, and Environment properties are null
+
             TestRuns = new TestRuns
             {
                 TestRunList = new List<TestRun>
@@ -96,17 +120,6 @@ public class Program
                         Duration = "10",
                         Status = "Passed",
                         Started = "1430919300000"
-                    },
-                    new TestRun
-                    {
-                        Module = "/updatedModule3",
-                        Package = "updatedPackage3",
-                        Class = "UpdatedHelloWorldTest3",
-                        Name = "updatedTestOne3",
-                        Duration = "7",
-                        Status = "Skipped",
-                        Started = "1430919300001",
-                        Error = new Error { Type = "Type2", Message = "Message2" }
                     }
                 }
             }
