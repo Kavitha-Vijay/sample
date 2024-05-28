@@ -19,34 +19,18 @@ public class Program
             // Convert JSON to XmlDocument
             XmlDocument xmlDocument = JsonConvert.DeserializeXmlNode(json, "Root");
 
-            // Update the XML document
-            XmlNode testFieldNode = xmlDocument.SelectSingleNode("/Root/test-field");
-            if (testFieldNode != null)
-            {
-                // Update the attributes
-                if (testFieldNode.Attributes != null)
-                {
-                    testFieldNode.Attributes["type"].Value = "newLevel";
-                    testFieldNode.Attributes["value"].Value = "newValue";
-                }
-            }
-            else
-            {
-                throw new InvalidOperationException("test-field node not found in the XML document.");
-            }
-
-            // Convert the updated XmlDocument to a string
-            string updatedXml;
+            // Convert the XmlDocument to a string
+            string xml;
             using (var stringWriter = new System.IO.StringWriter())
             using (var xmlTextWriter = new XmlTextWriter(stringWriter))
             {
-                xmlTextWriter.Formatting = Formatting.Indented; // optional: for pretty print
+                xmlTextWriter.Formatting = Formatting.Indented; // Optional: for pretty print
                 xmlDocument.WriteTo(xmlTextWriter);
-                updatedXml = stringWriter.ToString();
+                xml = stringWriter.ToString();
             }
 
-            // Output the updated XML string
-            Console.WriteLine(updatedXml);
+            // Output the XML string
+            Console.WriteLine(xml);
         }
         catch (Exception ex)
         {
