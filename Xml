@@ -1,59 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Xml;
 using System.Xml.Serialization;
 
-public class BacklogItemRef
-{
-    [XmlAttribute("id")]
-    public string Id { get; set; }
-
-    [XmlAttribute("name")]
-    public string Name { get; set; }
-}
-
-public class BacklogItem
-{
-    [XmlElement("backlog_item_ref")]
-    public List<BacklogItemRef> BacklogItemRefs { get; set; }
-}
-
-public class BacklogItems
-{
-    [XmlElement("backlog_item")]
-    public List<BacklogItem> BacklogItemList { get; set; }
-
-    public bool ShouldSerializeBacklogItemList() // This method controls whether the element should be serialized
-    {
-        return BacklogItemList != null && BacklogItemList.Count > 0;
-    }
-}
-
-public class TestField
+public class Error
 {
     [XmlAttribute("type")]
     public string Type { get; set; }
 
-    [XmlAttribute("value")]
-    public string Value { get; set; }
-}
-
-public class TestFields
-{
-    [XmlElement("test_field")]
-    public List<TestField> TestFieldsList { get; set; }
-}
-
-public class Taxonomy
-{
-    // Define properties for taxonomy here if needed
-}
-
-public class Environment
-{
-    [XmlElement("taxonomy")]
-    public Taxonomy Taxonomy { get; set; }
+    [XmlAttribute("message")]
+    public string Message { get; set; }
 }
 
 public class TestRun
@@ -78,6 +34,10 @@ public class TestRun
 
     [XmlAttribute("started")]
     public string Started { get; set; }
+
+    // Optional error node if status is "Failed" or "Skipped"
+    [XmlElement("error")]
+    public Error Error { get; set; }
 }
 
 public class TestRuns
@@ -109,25 +69,9 @@ public class Program
         // Create an instance of TestResults and populate its properties
         TestResults testResults = new TestResults
         {
-            BacklogItems = new BacklogItems
-            {
-                BacklogItemList = null // Set to null to test removal of backlog node
-            },
-            TestFields = new TestFields
-            {
-                TestFieldsList = new List<TestField>
-                {
-                    new TestField { Type = "dummy1", Value = "someValue1" },
-                    new TestField { Type = "dummy2", Value = "someValue2" }
-                }
-            },
-            Environment = new Environment
-            {
-                Taxonomy = new Taxonomy
-                {
-                    // Initialize taxonomy properties here if needed
-                }
-            },
+            BacklogItems = new BacklogItems(),
+            TestFields = new TestFields(),
+            Environment = new Environment(),
             TestRuns = new TestRuns
             {
                 TestRunList = new List<TestRun>
@@ -140,7 +84,8 @@ public class Program
                         Name = "updatedTestOne1",
                         Duration = "5",
                         Status = "Failed",
-                        Started = "1430919299999"
+                        Started = "1430919299999",
+                        Error = new Error { Type = "Type1", Message = "Message1" }
                     },
                     new TestRun
                     {
@@ -151,6 +96,17 @@ public class Program
                         Duration = "10",
                         Status = "Passed",
                         Started = "1430919300000"
+                    },
+                    new TestRun
+                    {
+                        Module = "/updatedModule3",
+                        Package = "updatedPackage3",
+                        Class = "UpdatedHelloWorldTest3",
+                        Name = "updatedTestOne3",
+                        Duration = "7",
+                        Status = "Skipped",
+                        Started = "1430919300001",
+                        Error = new Error { Type = "Type2", Message = "Message2" }
                     }
                 }
             }
@@ -165,15 +121,6 @@ public class Program
 
             // Deserialize XML string to TestResults object
             TestResults deserializedTestResults = DeserializeFromXml(xml);
-
-            // Update values in the TestResults object
-            UpdateTestField(deserializedTestResults.TestFields.TestFieldsList[0], "newType1", "newValue1");
-            UpdateTestRun(deserializedTestResults.TestRuns.TestRunList[0], "/newModule1", "newPackage1", "NewHelloWorldTest1", "newTestOne1", "15", "Passed", "1430919300001");
-
-            // Serialize updated TestResults object back to XML string
-            string updatedXml = SerializeToXml(deserializedTestResults);
-            Console.WriteLine("Updated XML:");
-            Console.WriteLine(updatedXml);
         }
         catch (Exception ex)
         {
@@ -185,20 +132,11 @@ public class Program
     {
         using (StringWriter sw = new StringWriter())
         {
-            var settings = new XmlWriterSettings
-            {
-                OmitXmlDeclaration = true,
-                Indent = true
-            };
-
             var ns = new XmlSerializerNamespaces();
             ns.Add("", ""); // Remove namespace
 
             XmlSerializer serializer = new XmlSerializer(typeof(TestResults));
-            using (XmlWriter writer = XmlWriter.Create(sw, settings))
-            {
-                serializer.Serialize(writer, testResults, ns);
-            }
+            serializer.Serialize(sw, testResults, ns);
             return sw.ToString();
         }
     }
@@ -210,22 +148,5 @@ public class Program
             XmlSerializer serializer = new XmlSerializer(typeof(TestResults));
             return (TestResults)serializer.Deserialize(sr);
         }
-    }
-
-    public static void UpdateTestField(TestField testField, string newType, string newValue)
-    {
-        testField.Type = newType;
-        testField.Value = newValue;
-    }
-
-    public static void UpdateTestRun(TestRun testRun, string newModule, string newPackage, string newClass, string newName, string newDuration, string newStatus, string newStarted)
-    {
-        testRun.Module = newModule;
-        testRun.Package = newPackage;
-        testRun.Class = newClass;
-        testRun.Name = newName;
-        testRun.Duration = newDuration;
-        testRun.Status = newStatus;
-        testRun.Started = newStarted;
     }
 }
