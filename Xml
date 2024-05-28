@@ -1,26 +1,6 @@
 using System;
-using System.IO;
-using System.Xml.Serialization;
+using System.Xml;
 using Newtonsoft.Json;
-
-// Define the TestField class with appropriate XML attributes
-[Serializable]
-public class TestField
-{
-    [XmlAttribute("type")]
-    public string Type { get; set; }
-
-    [XmlAttribute("value")]
-    public string Value { get; set; }
-}
-
-// Define the Root class that contains the TestField class
-[Serializable]
-public class Root
-{
-    [XmlElement("test-field")]
-    public TestField TestField { get; set; }
-}
 
 public class Program
 {
@@ -34,49 +14,43 @@ public class Program
             }
         }";
 
-        // Deserialize JSON to C# object
-        Root root = null;
         try
         {
-            root = JsonConvert.DeserializeObject<Root>(json);
-            if (root == null || root.TestField == null)
+            // Convert JSON to XmlDocument
+            XmlDocument xmlDocument = JsonConvert.DeserializeXmlNode(json, "Root");
+
+            // Update the XML document
+            XmlNode testFieldNode = xmlDocument.SelectSingleNode("/Root/test-field");
+            if (testFieldNode != null)
             {
-                throw new InvalidOperationException("Deserialization resulted in null object or missing test-field.");
+                // Update the attributes
+                if (testFieldNode.Attributes != null)
+                {
+                    testFieldNode.Attributes["type"].Value = "newLevel";
+                    testFieldNode.Attributes["value"].Value = "newValue";
+                }
             }
+            else
+            {
+                throw new InvalidOperationException("test-field node not found in the XML document.");
+            }
+
+            // Convert the updated XmlDocument to a string
+            string updatedXml;
+            using (var stringWriter = new System.IO.StringWriter())
+            using (var xmlTextWriter = new XmlTextWriter(stringWriter))
+            {
+                xmlTextWriter.Formatting = Formatting.Indented; // optional: for pretty print
+                xmlDocument.WriteTo(xmlTextWriter);
+                updatedXml = stringWriter.ToString();
+            }
+
+            // Output the updated XML string
+            Console.WriteLine(updatedXml);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error deserializing JSON: {ex.Message}");
-        }
-
-        // Update the C# object properties at runtime if needed
-        if (root != null)
-        {
-            root.TestField.Type = "newLevel";
-            root.TestField.Value = "newValue";
-        }
-
-        // Serialize the updated C# object to XML
-        if (root != null)
-        {
-            try
-            {
-                XmlSerializer xmlSerializer = new XmlSerializer(typeof(Root));
-                using StringWriter textWriter = new StringWriter();
-                xmlSerializer.Serialize(textWriter, root);
-                string xml = textWriter.ToString();
-
-                // Output the XML string
-                Console.WriteLine(xml);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error serializing to XML: {ex.Message}");
-            }
-        }
-        else
-        {
-            Console.WriteLine("Root object is null, skipping XML serialization.");
+            Console.WriteLine($"Error processing JSON to XML: {ex.Message}");
         }
     }
 }
