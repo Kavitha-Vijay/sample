@@ -3,6 +3,7 @@ using System.IO;
 using System.Xml.Serialization;
 using Newtonsoft.Json;
 
+[Serializable]
 public class TestField
 {
     [XmlAttribute("type")]
@@ -12,6 +13,7 @@ public class TestField
     public string Value { get; set; }
 }
 
+[Serializable]
 public class Root
 {
     [XmlElement("test-field")]
@@ -31,19 +33,41 @@ public class Program
         }";
 
         // Deserialize JSON to C# object
-        Root root = JsonConvert.DeserializeObject<Root>(json);
-
-        // Update the C# object properties at runtime
-        root.TestField.Type = "newLevel";
-        root.TestField.Value = "newValue";
+        Root root = null;
+        try
+        {
+            root = JsonConvert.DeserializeObject<Root>(json);
+            if (root == null || root.TestField == null)
+            {
+                throw new InvalidOperationException("Deserialization resulted in null object or missing test-field.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deserializing JSON: {ex.Message}");
+        }
 
         // Serialize the updated C# object to XML
-        XmlSerializer xmlSerializer = new XmlSerializer(typeof(Root));
-        using StringWriter textWriter = new StringWriter();
-        xmlSerializer.Serialize(textWriter, root);
-        string xml = textWriter.ToString();
+        if (root != null)
+        {
+            try
+            {
+                XmlSerializer xmlSerializer = new XmlSerializer(typeof(Root));
+                using StringWriter textWriter = new StringWriter();
+                xmlSerializer.Serialize(textWriter, root);
+                string xml = textWriter.ToString();
 
-        // Output the updated XML string
-        Console.WriteLine(xml);
+                // Output the XML string
+                Console.WriteLine(xml);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error serializing to XML: {ex.Message}");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Root object is null, skipping XML serialization.");
+        }
     }
 }
