@@ -1,0 +1,142 @@
+using System;
+using System.Collections.Generic;
+using System.Configuration;
+using System.IO;
+using System.Xml.Serialization;
+
+public class Error
+{
+    [XmlAttribute("type")]
+    public string Type { get; set; }
+
+    [XmlAttribute("message")]
+    public string Message { get; set; }
+}
+
+public class TestRun
+{
+    [XmlAttribute("module")]
+    public string Module { get; set; }
+
+    [XmlAttribute("package")]
+    public string Package { get; set; }
+
+    [XmlAttribute("class")]
+    public string Class { get; set; }
+
+    [XmlAttribute("name")]
+    public string Name { get; set; }
+
+    [XmlAttribute("duration")]
+    public string Duration { get; set; }
+
+    [XmlAttribute("status")]
+    public string Status { get; set; }
+
+    [XmlAttribute("started")]
+    public string Started { get; set; }
+
+    // Optional error node if status is "Failed" or "Skipped"
+    [XmlElement("error")]
+    public Error Error { get; set; }
+
+    public bool ShouldSerializeError() // Controls whether the error node should be serialized
+    {
+        return Error != null;
+    }
+}
+
+public class TestRuns
+{
+    [XmlElement("test_run")]
+    public List<TestRun> TestRunList { get; set; }
+
+    public bool ShouldSerializeTestRunList() // Controls whether the test_run list should be serialized
+    {
+        return TestRunList != null && TestRunList.Count > 0;
+    }
+}
+
+[XmlRoot("test_results")]
+public class TestResults
+{
+    [XmlElement("backlog_items")]
+    public BacklogItems BacklogItems { get; set; }
+
+    [XmlElement("test_fields")]
+    public TestFields TestFields { get; set; }
+
+    [XmlElement("environment")]
+    public Environment Environment { get; set; }
+
+    [XmlElement("test_runs")]
+    public TestRuns TestRuns { get; set; }
+
+    public bool ShouldSerializeBacklogItems() // Controls whether the backlog_items node should be serialized
+    {
+        return BacklogItems != null && BacklogItems.BacklogItemList.Count > 0;
+    }
+
+    public bool ShouldSerializeTestFields() // Controls whether the test_fields node should be serialized
+    {
+        return TestFields != null && TestFields.TestFieldsList.Count > 0;
+    }
+
+    public bool ShouldSerializeEnvironment() // Controls whether the environment node should be serialized
+    {
+        return Environment != null;
+    }
+}
+
+public class Program
+{
+    private static TestResults testResults = new TestResults(); // Initialize the TestResults object
+
+    public static void Main()
+    {
+        // Read backlog and test field information from app config
+        string backlogInfo = ConfigurationManager.AppSettings["BacklogInfo"];
+        string testFieldInfo = ConfigurationManager.AppSettings["TestFieldInfo"];
+
+        // Run your Selenium test suite
+        // After each test case completion, call the UpdateTestResults method with relevant information
+        // For demonstration purposes, let's assume we have two test cases and update results accordingly
+
+        // Test case 1 completed
+        UpdateTestResults("/module1", "package1", "TestClass1", "TestCase1", "5", "Passed", "1430919299999", null, backlogInfo, testFieldInfo);
+
+        // Test case 2 completed
+        UpdateTestResults("/module2", "package2", "TestClass2", "TestCase2", "10", "Failed", "1430919300000", new Error { Type = "Type1", Message = "Message1" }, backlogInfo, testFieldInfo);
+
+        // Serialize and output the updated XML
+        string updatedXml = SerializeToXml(testResults);
+        Console.WriteLine("Updated XML:");
+        Console.WriteLine(updatedXml);
+    }
+
+    public static void UpdateTestResults(string module, string package, string testClass, string testCase, string duration, string status, string started, Error error, string backlogInfo, string testFieldInfo)
+    {
+        // Parse backlog and test field information as needed
+        // For simplicity, assume they are strings and parse them accordingly
+
+        // Update the TestResults object
+        if (testResults.TestRuns == null)
+        {
+            testResults.TestRuns = new TestRuns { TestRunList = new List<TestRun>() };
+        }
+
+        testResults.TestRuns.TestRunList.Add(new TestRun
+        {
+            Module = module,
+            Package = package,
+            Class = testClass,
+            Name = testCase,
+            Duration = duration,
+            Status = status,
+            Started = started,
+            Error = error
+        });
+    }
+
+    // Other methods (Serialization, etc.) remain unchanged
+}
