@@ -1,11 +1,28 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Xml;
 using System.Xml.Serialization;
+
+public class BacklogItemRef
+{
+    [XmlAttribute("id")]
+    public string Id { get; set; }
+
+    [XmlAttribute("name")]
+    public string Name { get; set; }
+}
+
+public class BacklogItem
+{
+    [XmlElement("backlog_item_ref")]
+    public List<BacklogItemRef> BacklogItemRefs { get; set; }
+}
 
 public class BacklogItems
 {
-    // Define properties for backlog_items here if needed
+    [XmlElement("backlog_item")]
+    public List<BacklogItem> BacklogItemList { get; set; }
 }
 
 public class TestField
@@ -89,7 +106,17 @@ public class Program
         {
             BacklogItems = new BacklogItems
             {
-                // Initialize backlog items properties here if needed
+                BacklogItemList = new List<BacklogItem>
+                {
+                    new BacklogItem
+                    {
+                        BacklogItemRefs = new List<BacklogItemRef>
+                        {
+                            new BacklogItemRef { Id = "1", Name = "Item1" },
+                            new BacklogItemRef { Id = "2", Name = "Item2" }
+                        }
+                    }
+                }
             },
             TestFields = new TestFields
             {
@@ -137,47 +164,19 @@ public class Program
         try
         {
             // Serialize TestResults object to XML string
-            string xml;
-            using (StringWriter sw = new StringWriter())
-            {
-                XmlSerializer serializer = new XmlSerializer(typeof(TestResults));
-                serializer.Serialize(sw, testResults);
-                xml = sw.ToString();
-            }
-
-            // Output the XML string
+            string xml = SerializeToXml(testResults);
             Console.WriteLine("Serialized XML:");
             Console.WriteLine(xml);
 
             // Deserialize XML string to TestResults object
-            TestResults deserializedTestResults;
-            using (StringReader sr = new StringReader(xml))
-            {
-                XmlSerializer serializer = new XmlSerializer(typeof(TestResults));
-                deserializedTestResults = (TestResults)serializer.Deserialize(sr);
-            }
+            TestResults deserializedTestResults = DeserializeFromXml(xml);
 
             // Update values in the TestResults object
-            deserializedTestResults.TestFields.TestFieldsList[0].Type = "newType1";
-            deserializedTestResults.TestFields.TestFieldsList[0].Value = "newValue1";
-            deserializedTestResults.TestRuns.TestRunList[0].Module = "/newModule1";
-            deserializedTestResults.TestRuns.TestRunList[0].Package = "newPackage1";
-            deserializedTestResults.TestRuns.TestRunList[0].Class = "NewHelloWorldTest1";
-            deserializedTestResults.TestRuns.TestRunList[0].Name = "newTestOne1";
-            deserializedTestResults.TestRuns.TestRunList[0].Duration = "15";
-            deserializedTestResults.TestRuns.TestRunList[0].Status = "Passed";
-            deserializedTestResults.TestRuns.TestRunList[0].Started = "1430919300001";
+            UpdateTestField(deserializedTestResults.TestFields.TestFieldsList[0], "newType1", "newValue1");
+            UpdateTestRun(deserializedTestResults.TestRuns.TestRunList[0], "/newModule1", "newPackage1", "NewHelloWorldTest1", "newTestOne1", "15", "Passed", "1430919300001");
 
             // Serialize updated TestResults object back to XML string
-            string updatedXml;
-            using (StringWriter sw = new StringWriter())
-            {
-                XmlSerializer serializer = new XmlSerializer(typeof(TestResults));
-                serializer.Serialize(sw, deserializedTestResults);
-                updatedXml = sw.ToString();
-            }
-
-            // Output the updated XML string
+            string updatedXml = SerializeToXml(deserializedTestResults);
             Console.WriteLine("Updated XML:");
             Console.WriteLine(updatedXml);
         }
@@ -185,5 +184,53 @@ public class Program
         {
             Console.WriteLine($"Error updating XML: {ex.Message}");
         }
+    }
+
+    public static string SerializeToXml(TestResults testResults)
+    {
+        using (StringWriter sw = new StringWriter())
+        {
+            var settings = new XmlWriterSettings
+            {
+                OmitXmlDeclaration = true,
+                Indent = true
+            };
+
+            var ns = new XmlSerializerNamespaces();
+            ns.Add("", ""); // Remove namespace
+
+            XmlSerializer serializer = new XmlSerializer(typeof(TestResults));
+            using (XmlWriter writer = XmlWriter.Create(sw, settings))
+            {
+                serializer.Serialize(writer, testResults, ns);
+            }
+            return sw.ToString();
+        }
+    }
+
+    public static TestResults DeserializeFromXml(string xml)
+    {
+        using (StringReader sr = new StringReader(xml))
+        {
+            XmlSerializer serializer = new XmlSerializer(typeof(TestResults));
+            return (TestResults)serializer.Deserialize(sr);
+        }
+    }
+
+    public static void UpdateTestField(TestField testField, string newType, string newValue)
+    {
+        testField.Type = newType;
+        testField.Value = newValue;
+    }
+
+    public static void UpdateTestRun(TestRun testRun, string newModule, string newPackage, string newClass, string newName, string newDuration, string newStatus, string newStarted)
+    {
+        testRun.Module = newModule;
+        testRun.Package = newPackage;
+        testRun.Class = newClass;
+        testRun.Name = newName;
+        testRun.Duration = newDuration;
+        testRun.Status = newStatus;
+        testRun.Started = newStarted;
     }
 }
