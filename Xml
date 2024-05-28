@@ -23,6 +23,11 @@ public class BacklogItems
 {
     [XmlElement("backlog_item")]
     public List<BacklogItem> BacklogItemList { get; set; }
+
+    public bool ShouldSerializeBacklogItemList() // This method controls whether the element should be serialized
+    {
+        return BacklogItemList != null && BacklogItemList.Count > 0;
+    }
 }
 
 public class TestField
@@ -106,17 +111,7 @@ public class Program
         {
             BacklogItems = new BacklogItems
             {
-                BacklogItemList = new List<BacklogItem>
-                {
-                    new BacklogItem
-                    {
-                        BacklogItemRefs = new List<BacklogItemRef>
-                        {
-                            new BacklogItemRef { Id = "1", Name = "Item1" },
-                            new BacklogItemRef { Id = "2", Name = "Item2" }
-                        }
-                    }
-                }
+                BacklogItemList = null // Set to null to test removal of backlog node
             },
             TestFields = new TestFields
             {
