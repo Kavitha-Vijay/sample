@@ -1,0 +1,124 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Xml.Serialization;
+using Newtonsoft.Json;
+
+public class Error
+{
+    [JsonProperty("type")]
+    [XmlAttribute("type")]
+    public string Type { get; set; }
+
+    [JsonProperty("message")]
+    [XmlAttribute("message")]
+    public string Message { get; set; }
+}
+
+public class TestRun
+{
+    [JsonProperty("module")]
+    [XmlAttribute("module")]
+    public string Module { get; set; }
+
+    [JsonProperty("package")]
+    [XmlAttribute("package")]
+    public string Package { get; set; }
+
+    [JsonProperty("class")]
+    [XmlAttribute("class")]
+    public string Class { get; set; }
+
+    [JsonProperty("name")]
+    [XmlAttribute("name")]
+    public string Name { get; set; }
+
+    [JsonProperty("duration")]
+    [XmlAttribute("duration")]
+    public string Duration { get; set; }
+
+    [JsonProperty("status")]
+    [XmlAttribute("status")]
+    public string Status { get; set; }
+
+    [JsonProperty("started")]
+    [XmlAttribute("started")]
+    public string Started { get; set; }
+
+    [JsonProperty("error")]
+    [XmlElement("error")]
+    public Error Error { get; set; }
+}
+
+public class TestRuns
+{
+    [JsonProperty("test_run")]
+    [XmlElement("test_run")]
+    public List<TestRun> TestRunList { get; set; }
+}
+
+public class BacklogItem
+{
+    [JsonProperty("backlog_item_ref")]
+    [XmlElement("backlog_item_ref")]
+    public string BacklogItemRef { get; set; }
+}
+
+public class BacklogItems
+{
+    [JsonProperty("backlog_item")]
+    [XmlElement("backlog_item")]
+    public List<BacklogItem> BacklogItemList { get; set; }
+}
+
+public class TestField
+{
+    [JsonProperty("type")]
+    [XmlAttribute("type")]
+    public string Type { get; set; }
+
+    [JsonProperty("value")]
+    [XmlAttribute("value")]
+    public string Value { get; set; }
+}
+
+public class TestFields
+{
+    [JsonProperty("test_field")]
+    [XmlElement("test_field")]
+    public List<TestField> TestFieldsList { get; set; }
+}
+
+public class Environment
+{
+    [JsonProperty("taxonomy")]
+    [XmlElement("taxonomy")]
+    public string Taxonomy { get; set; }
+}
+
+[JsonObject("test_results")]
+[XmlRoot("test_results")]
+public class TestResults
+{
+    [JsonProperty("backlog_items")]
+    [XmlElement("backlog_items")]
+    public BacklogItems BacklogItems { get; set; }
+
+    [JsonProperty("test_fields")]
+    [XmlElement("test_fields")]
+    public TestFields TestFields { get; set; }
+
+    [JsonProperty("environment")]
+    [XmlElement("environment")]
+    public Environment Environment { get; set; }
+
+    [JsonProperty("test_runs")]
+    [XmlElement("test_runs")]
+    public TestRuns TestRuns { get; set; }
+
+    public bool ShouldSerializeBacklogItems() => BacklogItems?.BacklogItemList?.Count > 0;
+
+    public bool ShouldSerializeTestFields() => TestFields?.TestFieldsList?.Count > 0;
+
+    public bool ShouldSerializeEnvironment() => Environment != null;
+}
