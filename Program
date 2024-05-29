@@ -1,0 +1,79 @@
+using System.Configuration;
+using Newtonsoft.Json;
+
+public class Program
+{
+    private static TestResults testResults = new TestResults(); // Initialize the TestResults object
+
+    public static void Main()
+    {
+        // Load initial data from config
+        LoadInitialDataFromConfig();
+
+        // Example test case completion updates
+        UpdateTestResults("/module1", "package1", "TestClass1", "TestCase1", "5", "Passed", "1430919299999", null);
+        UpdateTestResults("/module2", "package2", "TestClass2", "TestCase2", "10", "Failed", "1430919300000", new Error { Type = "Type1", Message = "Message1" });
+
+        // Serialize and output the updated JSON
+        string updatedJson = JsonConvert.SerializeObject(testResults, Newtonsoft.Json.Formatting.Indented);
+        Console.WriteLine("Updated JSON:");
+        Console.WriteLine(updatedJson);
+
+        // Convert JSON to XML
+        string updatedXml = ConvertJsonToXml(updatedJson);
+        Console.WriteLine("Updated XML:");
+        Console.WriteLine(updatedXml);
+    }
+
+    public static void LoadInitialDataFromConfig()
+    {
+        string backlogInfo = ConfigurationManager.AppSettings["BacklogInfo"];
+        string testFieldInfo = ConfigurationManager.AppSettings["TestFieldInfo"];
+
+        // Parse backlogInfo and testFieldInfo as needed
+        // Example initialization from config values (assuming JSON strings for simplicity)
+        if (!string.IsNullOrEmpty(backlogInfo))
+        {
+            testResults.BacklogItems = JsonConvert.DeserializeObject<BacklogItems>(backlogInfo);
+        }
+
+        if (!string.IsNullOrEmpty(testFieldInfo))
+        {
+            testResults.TestFields = JsonConvert.DeserializeObject<TestFields>(testFieldInfo);
+        }
+    }
+
+    public static void UpdateTestResults(string module, string package, string testClass, string testCase, string duration, string status, string started, Error error)
+    {
+        if (testResults.TestRuns == null)
+        {
+            testResults.TestRuns = new TestRuns { TestRunList = new List<TestRun>() };
+        }
+
+        testResults.TestRuns.TestRunList.Add(new TestRun
+        {
+            Module = module,
+            Package = package,
+            Class = testClass,
+            Name = testCase,
+            Duration = duration,
+            Status = status,
+            Started = started,
+            Error = error
+        });
+    }
+
+    public static string ConvertJsonToXml(string json)
+    {
+        var doc = JsonConvert.DeserializeXmlNode(json, "test_results");
+        using (var stringWriter = new StringWriter())
+        {
+            using (var xmlTextWriter = System.Xml.XmlWriter.Create(stringWriter, new System.Xml.XmlWriterSettings { OmitXmlDeclaration = true }))
+            {
+                doc.WriteTo(xmlTextWriter);
+                xmlTextWriter.Flush();
+                return stringWriter.GetStringBuilder().ToString();
+            }
+        }
+    }
+}
