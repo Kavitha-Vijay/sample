@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Configuration;
+using System.Xml;
 using Newtonsoft.Json;
 
 public class Program
@@ -65,15 +68,35 @@ public class Program
 
     public static string ConvertJsonToXml(string json)
     {
-        var doc = JsonConvert.DeserializeXmlNode(json, "test_results");
-        using (var stringWriter = new StringWriter())
+        XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "test_results");
+
+        // Remove optional nodes if they are empty
+        RemoveEmptyNodes(doc, "backlog_items");
+        RemoveEmptyNodes(doc, "test_fields");
+        RemoveEmptyNodes(doc, "environment");
+
+        // Remove the XML declaration
+        XmlWriterSettings settings = new XmlWriterSettings
         {
-            using (var xmlTextWriter = System.Xml.XmlWriter.Create(stringWriter, new System.Xml.XmlWriterSettings { OmitXmlDeclaration = true }))
-            {
-                doc.WriteTo(xmlTextWriter);
-                xmlTextWriter.Flush();
-                return stringWriter.GetStringBuilder().ToString();
-            }
+            OmitXmlDeclaration = true,
+            Indent = true
+        };
+
+        using (StringWriter stringWriter = new StringWriter())
+        using (XmlWriter xmlWriter = XmlWriter.Create(stringWriter, settings))
+        {
+            doc.WriteTo(xmlWriter);
+            xmlWriter.Flush();
+            return stringWriter.GetStringBuilder().ToString();
+        }
+    }
+
+    private static void RemoveEmptyNodes(XmlDocument doc, string nodeName)
+    {
+        XmlNode node = doc.SelectSingleNode($"//{nodeName}");
+        if (node != null && !node.HasChildNodes)
+        {
+            node.ParentNode.RemoveChild(node);
         }
     }
 }
