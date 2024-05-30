@@ -1,64 +1,102 @@
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Xml;
+using Newtonsoft.Json;
 
-public class Error
+public class Program
 {
-    public string Type { get; set; }
-    public string Message { get; set; }
-}
+    private static TestResults testResults = new TestResults(); // Initialize the TestResults object
 
-public class TestRun
-{
-    public string Module { get; set; }
-    public string Package { get; set; }
-    public string Class { get; set; }
-    public string Name { get; set; }
-    public string Duration { get; set; }
-    public string Status { get; set; }
-    public string Started { get; set; }
-    public Error Error { get; set; }
-}
+    public static void Main()
+    {
+        // Load initial data from config
+        LoadInitialDataFromConfig();
 
-public class TestRuns
-{
-    public List<TestRun> TestRunList { get; set; }
-}
+        // Example test case completion updates
+        UpdateTestResults("/module1", "package1", "TestClass1", "TestCase1", "5", "Passed", "1430919299999", null);
+        UpdateTestResults("/module2", "package2", "TestClass2", "TestCase2", "10", "Failed", "1430919300000", new Error { Type = "Type1", Message = "Message1" });
 
-public class BacklogItem
-{
-    public string BacklogItemRef { get; set; }
-}
+        // Serialize and output the updated JSON
+        string updatedJson = JsonConvert.SerializeObject(testResults, Newtonsoft.Json.Formatting.Indented);
+        Console.WriteLine("Updated JSON:");
+        Console.WriteLine(updatedJson);
 
-public class BacklogItems
-{
-    public List<BacklogItem> BacklogItemList { get; set; }
-}
+        // Convert JSON to XML
+        string updatedXml = ConvertJsonToXml(updatedJson);
+        Console.WriteLine("Updated XML:");
+        Console.WriteLine(updatedXml);
+    }
 
-public class TestField
-{
-    public string Type { get; set; }
-    public string Value { get; set; }
-}
+    public static void LoadInitialDataFromConfig()
+    {
+        string backlogInfo = ConfigurationManager.AppSettings["BacklogInfo"];
+        string testFieldInfo = ConfigurationManager.AppSettings["TestFieldInfo"];
 
-public class TestFields
-{
-    public List<TestField> TestFieldsList { get; set; }
-}
+        // Parse backlogInfo and testFieldInfo as needed
+        // Example initialization from config values (assuming JSON strings for simplicity)
+        if (!string.IsNullOrEmpty(backlogInfo))
+        {
+            testResults.BacklogItems = JsonConvert.DeserializeObject<BacklogItems>(backlogInfo);
+        }
 
-public class Environment
-{
-    public string Taxonomy { get; set; }
-}
+        if (!string.IsNullOrEmpty(testFieldInfo))
+        {
+            testResults.TestFields = JsonConvert.DeserializeObject<TestFields>(testFieldInfo);
+        }
+    }
 
-public class TestResults
-{
-    public BacklogItems BacklogItems { get; set; }
-    public TestFields TestFields { get; set; }
-    public Environment Environment { get; set; }
-    public TestRuns TestRuns { get; set; }
+    public static void UpdateTestResults(string module, string package, string testClass, string testCase, string duration, string status, string started, Error error)
+    {
+        if (testResults.TestRuns == null)
+        {
+            testResults.TestRuns = new TestRuns { TestRunList = new List<TestRun>() };
+        }
 
-    public bool ShouldSerializeBacklogItems() => BacklogItems?.BacklogItemList?.Count > 0;
-    public bool ShouldSerializeTestFields() => TestFields?.TestFieldsList?.Count > 0;
-    public bool ShouldSerializeEnvironment() => Environment != null;
+        testResults.TestRuns.TestRunList.Add(new TestRun
+        {
+            Module = module,
+            Package = package,
+            Class = testClass,
+            Name = testCase,
+            Duration = duration,
+            Status = status,
+            Started = started,
+            Error = error
+        });
+    }
+
+    public static string ConvertJsonToXml(string json)
+    {
+        XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "test_results");
+
+        // Remove optional nodes if they are empty
+        RemoveEmptyNodes(doc, "backlog_items");
+        RemoveEmptyNodes(doc, "test_fields");
+        RemoveEmptyNodes(doc, "environment");
+
+        // Remove the XML declaration
+        XmlWriterSettings settings = new XmlWriterSettings
+        {
+            OmitXmlDeclaration = true,
+            Indent = true
+        };
+
+        using (StringWriter stringWriter = new StringWriter())
+        using (XmlWriter xmlWriter = XmlWriter.Create(stringWriter, settings))
+        {
+            doc.WriteTo(xmlWriter);
+            xmlWriter.Flush();
+            return stringWriter.GetStringBuilder().ToString();
+        }
+    }
+
+    private static void RemoveEmptyNodes(XmlDocument doc, string nodeName)
+    {
+        XmlNode node = doc.SelectSingleNode($"//{nodeName}");
+        if (node != null && !node.HasChildNodes)
+        {
+            node.ParentNode.RemoveChild(node);
+        }
+    }
 }
