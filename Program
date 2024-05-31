@@ -1,59 +1,60 @@
+using NUnit.Framework;
 using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Xml;
+using System.Diagnostics;
 using Newtonsoft.Json;
 
-public class Program
+[TestFixture]
+public class MyTests
 {
     private static TestResults testResults = new TestResults(); // Initialize the TestResults object
+    private Stopwatch stopwatch;
 
-    public static void Main()
+    [SetUp]
+    public void SetUp()
     {
-        // Load initial data from config
-        LoadInitialDataFromConfig();
+        stopwatch = Stopwatch.StartNew();
+    }
 
-        // Example test case completion updates
-        UpdateTestResults("/module1", "package1", "TestClass1", "TestCase1", "5", "Passed", "1430919299999", null);
-        UpdateTestResults("/module2", "package2", "TestClass2", "TestCase2", "10", "Failed", "1430919300000", new Error { Type = "Type1", Message = "Message1" });
+    [TearDown]
+    public void TearDown()
+    {
+        stopwatch.Stop();
 
-        // Serialize and output the updated JSON
+        string testName = TestContext.CurrentContext.Test.Name;
+        string status = TestContext.CurrentContext.Result.Outcome.Status.ToString();
+        string duration = stopwatch.ElapsedMilliseconds.ToString();
+
+        // Update test results
+        UpdateTestResults("/module", "package", "ClassName", testName, duration, status, DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"), null);
+
+        // Serialize updated JSON
         string updatedJson = JsonConvert.SerializeObject(testResults, Newtonsoft.Json.Formatting.Indented);
         Console.WriteLine("Updated JSON:");
         Console.WriteLine(updatedJson);
 
-        // Convert JSON to XML
+        // Optionally convert JSON to XML
         string updatedXml = ConvertJsonToXml(updatedJson);
         Console.WriteLine("Updated XML:");
         Console.WriteLine(updatedXml);
     }
 
-    public static void LoadInitialDataFromConfig()
+    [Test]
+    public void Test1()
     {
-        string backlogInfo = ConfigurationManager.AppSettings["BacklogInfo"];
-        string testFieldInfo = ConfigurationManager.AppSettings["TestFieldInfo"];
+        // Your test code here
+        Assert.Pass();
+    }
 
-        // Parse backlogInfo and testFieldInfo as needed
-        // Example initialization from config values (assuming JSON strings for simplicity)
-        if (!string.IsNullOrEmpty(backlogInfo))
-        {
-            testResults.BacklogItems = JsonConvert.DeserializeObject<BacklogItems>(backlogInfo);
-        }
-
-        if (!string.IsNullOrEmpty(testFieldInfo))
-        {
-            testResults.TestFields = JsonConvert.DeserializeObject<TestFields>(testFieldInfo);
-        }
+    [Test]
+    public void Test2()
+    {
+        // Your test code here
+        Assert.Fail("This is a failure message.");
     }
 
     public static void UpdateTestResults(string module, string package, string testClass, string testCase, string duration, string status, string started, Error error)
     {
-        if (testResults.TestRuns == null)
-        {
-            testResults.TestRuns = new TestRuns { TestRunList = new List<TestRun>() };
-        }
-
-        testResults.TestRuns.TestRunList.Add(new TestRun
+        testResults.TestRuns.Add(new TestRun
         {
             Module = module,
             Package = package,
@@ -68,7 +69,7 @@ public class Program
 
     public static string ConvertJsonToXml(string json)
     {
-        XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "test_results");
+        XmlDocument doc = JsonConvert.DeserializeXmlNode(json, "test_result");
 
         // Remove optional nodes if they are empty
         RemoveEmptyNodes(doc, "backlog_items");
