@@ -1,0 +1,53 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Xml.Serialization;
+using Newtonsoft.Json;
+using NUnit.Framework;
+using System.Diagnostics;
+
+public class BacklogItemRef
+{
+    public string id { get; set; }
+}
+
+public class TestField
+{
+    public string type { get; set; }
+    public string value { get; set; }
+}
+
+public class Environment
+{
+    public string type { get; set; }
+    public string value { get; set; }
+}
+
+public class Error
+{
+    public string type { get; set; }
+    public string message { get; set; }
+}
+
+public class TestRun
+{
+    public string module { get; set; }
+    public string package { get; set; }
+    public string @class { get; set; }
+    public string name { get; set; }
+    public string duration { get; set; }
+    public string status { get; set; }
+    public Error error { get; set; }
+}
+
+public class TestResult
+{
+    public string release_name { get; set; }
+    public List<BacklogItemRef> backlog_items { get; set; }
+    public List<TestField> test_fields { get; set; }
+    public List<Environment> environment { get; set; }
+    public List<TestRun> test_runs { get; set; }
+}
