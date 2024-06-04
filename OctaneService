@@ -1,0 +1,53 @@
+public class OctaneConfig
+{
+    public string BaseUrl { get; set; }
+    public string SharedSpaceId { get; set; }
+    public string WorkspaceId { get; set; }
+    public string ClientId { get; set; }
+    public string ClientSecret { get; set; }
+}
+
+public class OctaneService
+{
+    private readonly OctaneConfig _config;
+    private HttpClient _client;
+
+    public OctaneService(OctaneConfig config)
+    {
+        _config = config;
+        _client = new HttpClient();
+    }
+
+    public async Task<string> AuthenticateAsync()
+    {
+        var requestBody = new
+        {
+            client_id = _config.ClientId,
+            client_secret = _config.ClientSecret
+        };
+
+        var content = new StringContent(JsonConvert.SerializeObject(requestBody), Encoding.UTF8, "application/json");
+
+        var response = await _client.PostAsync($"{_config.BaseUrl}/authentication/sign_in", content);
+        response.EnsureSuccessStatusCode();
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        dynamic result = JsonConvert.DeserializeObject(responseBody);
+        string token = result.data[0].token;
+
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        return token;
+    }
+
+    public async Task PostTestResultsAsync(string xmlContent)
+    {
+        var content = new StringContent(xmlContent, Encoding.UTF8, "application/xml");
+
+        var response = await _client.PostAsync($"{_config.BaseUrl}/api/shared_spaces/{_config.SharedSpaceId}/workspaces/{_config.WorkspaceId}/test_runs", content);
+        response.EnsureSuccessStatusCode();
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        Console.WriteLine($"Response: {responseBody}");
+    }
+}
