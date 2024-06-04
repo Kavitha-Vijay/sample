@@ -1,0 +1,134 @@
+[TestFixture]
+public class MyTests
+{
+    private OctaneService _octaneService;
+    private TestResult _testResult;
+
+    [SetUp]
+    public void SetUp()
+    {
+        // Load configuration
+        var config = LoadConfiguration().Get<OctaneConfig>();
+
+        // Initialize OctaneService
+        _octaneService = new OctaneService(config);
+
+        // Authenticate with Octane
+        _octaneService.AuthenticateAsync().Wait();
+
+        // Initialize TestResult object
+        _testResult = new TestResult
+        {
+            release_name = "Release 1",
+            backlog_items = new List<BacklogItemRef>
+            {
+                new BacklogItemRef { id = "123" }
+            },
+            test_fields = new List<TestField>
+            {
+                new TestField { type = "Functional", value = "Yes" }
+            },
+            environment = new List<Environment>
+            {
+                new Environment { type = "OS", value = "Windows" }
+            },
+            test_runs = new List<TestRun>()
+        };
+    }
+
+    [Test]
+    public async Task TestCase1()
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            // Simulate test execution
+            Assert.AreEqual(1, 1);
+
+            stopwatch.Stop();
+            AddTestRun("TestCase1", "Passed", stopwatch.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            AddTestRun("TestCase1", "Failed", stopwatch.ElapsedMilliseconds, ex);
+        }
+    }
+
+    [Test]
+    public async Task TestCase2()
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            // Simulate test execution
+            Assert.AreEqual(1, 2);
+
+            stopwatch.Stop();
+            AddTestRun("TestCase2", "Passed", stopwatch.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            AddTestRun("TestCase2", "Failed", stopwatch.ElapsedMilliseconds, ex);
+        }
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        // Serialize TestResult to XML and post it to Octane
+        var xml = SerializeToXml(_testResult);
+        _octaneService.PostTestResultsAsync(xml).Wait();
+    }
+
+    private void AddTestRun(string testName, string status, long duration, Exception ex = null)
+    {
+        var testRun = new TestRun
+        {
+            module = "MyModule",
+            package = "MyPackage",
+            @class = "MyClass",
+            name = testName,
+            duration = duration.ToString(),
+            status = status
+        };
+
+        if (ex != null)
+        {
+            testRun.error = new Error
+            {
+                type = "Exception",
+                message = ex.Message
+            };
+        }
+
+        _testResult.test_runs.Add(testRun);
+    }
+
+    private string SerializeToXml(TestResult testResult)
+    {
+        var xmlRoot = new XmlRootAttribute { ElementName = "test_result", IsNullable = true };
+        var serializer = new XmlSerializer(typeof(TestResult), xmlRoot);
+        
+        var xmlNamespaces = new XmlSerializerNamespaces();
+        xmlNamespaces.Add(string.Empty, string.Empty);  // Remove xmlns:xsi and other namespaces
+
+        using (var stringWriter = new StringWriter())
+        {
+            serializer.Serialize(stringWriter, testResult, xmlNamespaces);
+            return stringWriter.ToString();
+        }
+    }
+
+    private static IConfigurationRoot LoadConfiguration()
+    {
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+
+        return builder.Build();
+    }
+}
