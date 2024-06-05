@@ -96,3 +96,33 @@ public class NUnitTests
         }
     }
 }
+// Method to update test runs during runtime
+[Test]
+public void UpdateTestRuns()
+{
+    // Deserialize test results from XML
+    TestResult testResult = DeserializeTestResult("test_results.xml");
+
+    // Update test runs
+    foreach (var testRun in testResult.TestRuns)
+    {
+        // Check if the status is not equal to "Success"
+        if (testRun.Status != "Success")
+        {
+            // Add error node
+            testRun.Error = new Error
+            {
+                Type = "ErrorType",
+                Message = "Test run failed"
+            };
+        }
+        else
+        {
+            // Remove error node
+            testRun.Error = null;
+        }
+    }
+
+    // Serialize updated test results to XML
+    SerializeTestResult(testResult, "updated_test_results.xml");
+}
