@@ -1,53 +1,58 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Xml.Serialization;
-using Newtonsoft.Json;
-using NUnit.Framework;
-using System.Diagnostics;
-
-public class BacklogItemRef
+// Deserialize XML into TestResult object
+XmlSerializer serializer = new XmlSerializer(typeof(TestResult));
+using (FileStream fileStream = new FileStream("test_result.xml", FileMode.Open))
 {
-    public string id { get; set; }
-}
+    TestResult testResult = (TestResult)serializer.Deserialize(fileStream);
 
-public class TestField
-{
-    public string type { get; set; }
-    public string value { get; set; }
-}
+    // Update release name
+    testResult.ReleaseName = "June2024 Release";
 
-public class Environment
-{
-    public string type { get; set; }
-    public string value { get; set; }
-}
+    // Update backlog item id
+    foreach (var backlogItem in testResult.BacklogItems)
+    {
+        backlogItem.Id = "169027";
+    }
 
-public class Error
-{
-    public string type { get; set; }
-    public string message { get; set; }
-}
+    // Update product area id
+    foreach (var productArea in testResult.ProductAreas)
+    {
+        productArea.Id = "5002";
+    }
 
-public class TestRun
-{
-    public string module { get; set; }
-    public string package { get; set; }
-    public string @class { get; set; }
-    public string name { get; set; }
-    public string duration { get; set; }
-    public string status { get; set; }
-    public Error error { get; set; }
-}
+    // Update test field values
+    foreach (var testField in testResult.TestFields)
+    {
+        if (testField.Type == "Test Level")
+        {
+            testField.Value = "System Test";
+        }
+        else if (testField.Type == "Testing Tool Type")
+        {
+            testField.Value = "JUnit";
+        }
+    }
 
-public class TestResult
-{
-    public string release_name { get; set; }
-    public List<BacklogItemRef> backlog_items { get; set; }
-    public List<TestField> test_fields { get; set; }
-    public List<Environment> environment { get; set; }
-    public List<TestRun> test_runs { get; set; }
+    // Update environment values
+    foreach (var environment in testResult.Environment)
+    {
+        if (environment.Type == "Browser")
+        {
+            environment.Value = "Firefox";
+        }
+    }
+
+    // Update test run error message
+    foreach (var testRun in testResult.TestRuns)
+    {
+        if (testRun.Name == "Registration Applicat")
+        {
+            testRun.Error.Message = "Updated error message";
+        }
+    }
+
+    // Serialize the updated object back to XML
+    using (FileStream updatedFileStream = new FileStream("updated_test_result.xml", FileMode.Create))
+    {
+        serializer.Serialize(updatedFileStream, testResult);
+    }
 }
