@@ -1,29 +1,86 @@
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Xml.Serialization;
 
-public class Error
+[XmlRoot("test_result")]
+public class TestResult
 {
+    [XmlAttribute("release_name")]
+    public string ReleaseName { get; set; }
+
+    [XmlArray("backlog_items")]
+    [XmlArrayItem("backlog_item_ref")]
+    public List<BacklogItemRef> BacklogItems { get; set; }
+
+    [XmlArray("product_areas")]
+    [XmlArrayItem("product_area_ref")]
+    public List<ProductAreaRef> ProductAreas { get; set; }
+
+    [XmlArray("test_fields")]
+    [XmlArrayItem("test_field")]
+    public List<TestField> TestFields { get; set; }
+
+    [XmlArray("environment")]
+    [XmlArrayItem("taxonomy")]
+    public List<Taxonomy> Environment { get; set; }
+
+    [XmlArray("test_runs")]
+    [XmlArrayItem("test_run")]
+    public List<TestRun> TestRuns { get; set; }
+}
+
+public class BacklogItemRef
+{
+    [XmlAttribute("id")]
+    public string Id { get; set; }
+}
+
+public class ProductAreaRef
+{
+    [XmlAttribute("id")]
+    public string Id { get; set; }
+}
+
+public class TestField
+{
+    [XmlAttribute("type")]
     public string Type { get; set; }
-    public string Message { get; set; }
+
+    [XmlAttribute("value")]
+    public string Value { get; set; }
+}
+
+public class Taxonomy
+{
+    [XmlAttribute("type")]
+    public string Type { get; set; }
+
+    [XmlAttribute("value")]
+    public string Value { get; set; }
 }
 
 public class TestRun
 {
+    [XmlAttribute("module")]
     public string Module { get; set; }
+
+    [XmlAttribute("package")]
     public string Package { get; set; }
+
+    [XmlAttribute("class")]
     public string Class { get; set; }
+
+    [XmlAttribute("name")]
     public string Name { get; set; }
-    public string Duration { get; set; }
-    public string Status { get; set; }
-    public string Started { get; set; }
+
     public Error Error { get; set; }
 }
 
-public class TestResults
+public class Error
 {
-    public Dictionary<string, object> BacklogItems { get; set; } = new Dictionary<string, object>();
-    public Dictionary<string, object> TestFields { get; set; } = new Dictionary<string, object>();
-    public Dictionary<string, object> Environment { get; set; } = new Dictionary<string, object>();
-    public List<TestRun> TestRuns { get; set; } = new List<TestRun>();
+    [XmlAttribute("type")]
+    public string Type { get; set; }
+
+    [XmlAttribute("message")]
+    public string Message { get; set; }
 }
