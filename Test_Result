@@ -1,58 +1,98 @@
-// Deserialize XML into TestResult object
-XmlSerializer serializer = new XmlSerializer(typeof(TestResult));
-using (FileStream fileStream = new FileStream("test_result.xml", FileMode.Open))
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Xml.Serialization;
+using NUnit.Framework;
+
+[TestFixture]
+public class NUnitTests
 {
-    TestResult testResult = (TestResult)serializer.Deserialize(fileStream);
-
-    // Update release name
-    testResult.ReleaseName = "June2024 Release";
-
-    // Update backlog item id
-    foreach (var backlogItem in testResult.BacklogItems)
+    // Method to generate test results during NUnit test execution
+    [Test]
+    public void GenerateTestResults()
     {
-        backlogItem.Id = "169027";
-    }
-
-    // Update product area id
-    foreach (var productArea in testResult.ProductAreas)
-    {
-        productArea.Id = "5002";
-    }
-
-    // Update test field values
-    foreach (var testField in testResult.TestFields)
-    {
-        if (testField.Type == "Test Level")
+        // Generate test results
+        TestResult testResult = new TestResult
         {
-            testField.Value = "System Test";
-        }
-        else if (testField.Type == "Testing Tool Type")
+            ReleaseName = "May2024 Release",
+            BacklogItems = new List<BacklogItemRef> { new BacklogItemRef { Id = "169026" } },
+            ProductAreas = new List<ProductAreaRef> { new ProductAreaRef { Id = "5001" } },
+            TestFields = new List<TestField>
+            {
+                new TestField { Type = "Test Level", Value = "Integration Test" },
+                new TestField { Type = "Test Type", Value = "End to End" },
+                new TestField { Type = "Testing Tool Type", Value = "Selenium" },
+                new TestField { Type = "Framework", Value = "WAF.NET" }
+            },
+            Environment = new List<Taxonomy>
+            {
+                new Taxonomy { Type = "DEV", Value = "Dev Environment" },
+                new Taxonomy { Type = "Browser", Value = "Chrome" },
+                new Taxonomy { Type = "DB", Value = "Oracle" },
+                new Taxonomy { Type = "OS", Value = "Windows" },
+                new Taxonomy { Type = "AUT Env", Value = "Staging" }
+            },
+            TestRuns = new List<TestRun>
+            {
+                new TestRun
+                {
+                    Module = "Registration Page UI",
+                    Package = "UI",
+                    Class = "RegPage",
+                    Name = "Registration Application",
+                    Error = new Error
+                    {
+                        Type = "java.lang.AssertionError",
+                        Message = "expected: 'UI element visible but was: 'Not v Was:'222'"
+                    }
+                }
+            }
+        };
+
+        // Serialize test results to XML
+        SerializeTestResult(testResult, "test_results.xml");
+    }
+
+    // Method to update test runs during runtime
+    [Test]
+    public void UpdateTestRuns()
+    {
+        // Deserialize test results from XML
+        TestResult testResult = DeserializeTestResult("test_results.xml");
+
+        // Update test runs
+        foreach (var testRun in testResult.TestRuns)
         {
-            testField.Value = "JUnit";
+            if (testRun.Name == "Registration Application")
+            {
+                testRun.Module = "Updated Module";
+                testRun.Package = "Updated Package";
+                testRun.Class = "Updated Class";
+                testRun.Error.Message = "Updated Error Message";
+            }
+        }
+
+        // Serialize updated test results to XML
+        SerializeTestResult(testResult, "updated_test_results.xml");
+    }
+
+    // Helper method to serialize TestResult object to XML
+    private void SerializeTestResult(TestResult testResult, string filePath)
+    {
+        XmlSerializer serializer = new XmlSerializer(typeof(TestResult));
+        using (FileStream fileStream = new FileStream(filePath, FileMode.Create))
+        {
+            serializer.Serialize(fileStream, testResult);
         }
     }
 
-    // Update environment values
-    foreach (var environment in testResult.Environment)
+    // Helper method to deserialize TestResult object from XML
+    private TestResult DeserializeTestResult(string filePath)
     {
-        if (environment.Type == "Browser")
+        XmlSerializer serializer = new XmlSerializer(typeof(TestResult));
+        using (FileStream fileStream = new FileStream(filePath, FileMode.Open))
         {
-            environment.Value = "Firefox";
+            return (TestResult)serializer.Deserialize(fileStream);
         }
-    }
-
-    // Update test run error message
-    foreach (var testRun in testResult.TestRuns)
-    {
-        if (testRun.Name == "Registration Applicat")
-        {
-            testRun.Error.Message = "Updated error message";
-        }
-    }
-
-    // Serialize the updated object back to XML
-    using (FileStream updatedFileStream = new FileStream("updated_test_result.xml", FileMode.Create))
-    {
-        serializer.Serialize(updatedFileStream, testResult);
     }
 }
