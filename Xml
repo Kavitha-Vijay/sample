@@ -3,13 +3,125 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
 
-public class Error
+[XmlRoot("test_result")]
+public class TestResult
+{
+    [XmlAttribute("release_name")]
+    public string ReleaseName { get; set; }
+
+    [XmlArray("backlog_items")]
+    [XmlArrayItem("backlog_item_ref")]
+    public List<BacklogItemRef> BacklogItems { get; set; }
+
+    [XmlArray("product_areas")]
+    [XmlArrayItem("product_area_ref")]
+    public List<ProductAreaRef> ProductAreas { get; set; }
+
+    [XmlArray("test_fields")]
+    [XmlArrayItem("test_field")]
+    public List<TestField> TestFields { get; set; }
+
+    [XmlArray("environment")]
+    [XmlArrayItem("taxonomy")]
+    public List<Taxonomy> Environment { get; set; }
+
+    [XmlArray("test_runs")]
+    [XmlArrayItem("test_run")]
+    public List<TestRun> TestRuns { get; set; }
+
+    // Serialization control for BacklogItems
+    public bool ShouldSerializeBacklogItems()
+    {
+        return BacklogItems != null && BacklogItems.Count > 0;
+    }
+
+    // Serialization control for ProductAreas
+    public bool ShouldSerializeProductAreas()
+    {
+        return ProductAreas != null && ProductAreas.Count > 0;
+    }
+
+    // Serialization control for TestFields
+    public bool ShouldSerializeTestFields()
+    {
+        return TestFields != null && TestFields.Count > 0;
+    }
+
+    // Serialization control for Environment
+    public bool ShouldSerializeEnvironment()
+    {
+        return Environment != null && Environment.Count > 0;
+    }
+
+    // Serialization control for TestRuns
+    public bool ShouldSerializeTestRuns()
+    {
+        return TestRuns != null && TestRuns.Count > 0;
+    }
+}
+
+public class BacklogItemRef
+{
+    [XmlAttribute("id")]
+    public string Id { get; set; }
+
+    // Serialization control for Id
+    public bool ShouldSerializeId()
+    {
+        return !string.IsNullOrEmpty(Id);
+    }
+}
+
+public class ProductAreaRef
+{
+    [XmlAttribute("id")]
+    public string Id { get; set; }
+
+    // Serialization control for Id
+    public bool ShouldSerializeId()
+    {
+        return !string.IsNullOrEmpty(Id);
+    }
+}
+
+public class TestField
 {
     [XmlAttribute("type")]
     public string Type { get; set; }
 
-    [XmlAttribute("message")]
-    public string Message { get; set; }
+    [XmlAttribute("value")]
+    public string Value { get; set; }
+
+    // Serialization control for Type and Value
+    public bool ShouldSerializeType()
+    {
+        return !string.IsNullOrEmpty(Type);
+    }
+
+    public bool ShouldSerializeValue()
+    {
+        return !string.IsNullOrEmpty(Value);
+    }
+}
+
+public class Taxonomy
+{
+    [XmlAttribute("type")]
+    public string Type { get; set; }
+
+    [XmlAttribute("value")]
+    public string Value { get; set; }
+
+    // Serialization control for Type and Value
+    public bool ShouldSerializeType()
+    {
+        return !string.IsNullOrEmpty(Type);
+    }
+
+    public bool ShouldSerializeValue()
+    {
+        return !string.IsNullOrEmpty(Value);
+    }
 }
 
 public class TestRun
@@ -26,140 +138,61 @@ public class TestRun
     [XmlAttribute("name")]
     public string Name { get; set; }
 
-    [XmlAttribute("duration")]
-    public string Duration { get; set; }
-
     [XmlAttribute("status")]
     public string Status { get; set; }
 
-    [XmlAttribute("started")]
-    public string Started { get; set; }
-
-    // Optional error node if status is "Failed" or "Skipped"
     [XmlElement("error")]
     public Error Error { get; set; }
 
-    public bool ShouldSerializeError() // Controls whether the error node should be serialized
+    // Serialization control for Error
+    public bool ShouldSerializeError()
     {
-        return Error != null;
+        return Error != null && (Error.Type != null || Error.Message != null);
+    }
+
+    // Serialization control for other attributes
+    public bool ShouldSerializeModule()
+    {
+        return !string.IsNullOrEmpty(Module);
+    }
+
+    public bool ShouldSerializePackage()
+    {
+        return !string.IsNullOrEmpty(Package);
+    }
+
+    public bool ShouldSerializeClass()
+    {
+        return !string.IsNullOrEmpty(Class);
+    }
+
+    public bool ShouldSerializeName()
+    {
+        return !string.IsNullOrEmpty(Name);
+    }
+
+    public bool ShouldSerializeStatus()
+    {
+        return !string.IsNullOrEmpty(Status);
     }
 }
 
-public class TestRuns
+public class Error
 {
-    [XmlElement("test_run")]
-    public List<TestRun> TestRunList { get; set; }
+    [XmlAttribute("type")]
+    public string Type { get; set; }
 
-    public bool ShouldSerializeTestRunList() // Controls whether the test_run list should be serialized
+    [XmlAttribute("message")]
+    public string Message { get; set; }
+
+    // Serialization control for Type and Message
+    public bool ShouldSerializeType()
     {
-        return TestRunList != null && TestRunList.Count > 0;
-    }
-}
-
-[XmlRoot("test_results")]
-public class TestResults
-{
-    [XmlElement("backlog_items")]
-    public BacklogItems BacklogItems { get; set; }
-
-    [XmlElement("test_fields")]
-    public TestFields TestFields { get; set; }
-
-    [XmlElement("environment")]
-    public Environment Environment { get; set; }
-
-    [XmlElement("test_runs")]
-    public TestRuns TestRuns { get; set; }
-
-    public bool ShouldSerializeBacklogItems() // Controls whether the backlog_items node should be serialized
-    {
-        return BacklogItems != null && BacklogItems.BacklogItemList.Count > 0;
+        return !string.IsNullOrEmpty(Type);
     }
 
-    public bool ShouldSerializeTestFields() // Controls whether the test_fields node should be serialized
+    public bool ShouldSerializeMessage()
     {
-        return TestFields != null && TestFields.TestFieldsList.Count > 0;
-    }
-
-    public bool ShouldSerializeEnvironment() // Controls whether the environment node should be serialized
-    {
-        return Environment != null;
-    }
-}
-
-public class Program
-{
-    public static void Main()
-    {
-        // Create an instance of TestResults and populate its properties
-        TestResults testResults = new TestResults
-        {
-            // BacklogItems, TestFields, and Environment properties are null
-
-            TestRuns = new TestRuns
-            {
-                TestRunList = new List<TestRun>
-                {
-                    new TestRun
-                    {
-                        Module = "/updatedModule1",
-                        Package = "updatedPackage1",
-                        Class = "UpdatedHelloWorldTest1",
-                        Name = "updatedTestOne1",
-                        Duration = "5",
-                        Status = "Failed",
-                        Started = "1430919299999",
-                        Error = new Error { Type = "Type1", Message = "Message1" }
-                    },
-                    new TestRun
-                    {
-                        Module = "/updatedModule2",
-                        Package = "updatedPackage2",
-                        Class = "UpdatedHelloWorldTest2",
-                        Name = "updatedTestOne2",
-                        Duration = "10",
-                        Status = "Passed",
-                        Started = "1430919300000"
-                    }
-                }
-            }
-        };
-
-        try
-        {
-            // Serialize TestResults object to XML string
-            string xml = SerializeToXml(testResults);
-            Console.WriteLine("Serialized XML:");
-            Console.WriteLine(xml);
-
-            // Deserialize XML string to TestResults object
-            TestResults deserializedTestResults = DeserializeFromXml(xml);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error updating XML: {ex.Message}");
-        }
-    }
-
-    public static string SerializeToXml(TestResults testResults)
-    {
-        using (StringWriter sw = new StringWriter())
-        {
-            var ns = new XmlSerializerNamespaces();
-            ns.Add("", ""); // Remove namespace
-
-            XmlSerializer serializer = new XmlSerializer(typeof(TestResults));
-            serializer.Serialize(sw, testResults, ns);
-            return sw.ToString();
-        }
-    }
-
-    public static TestResults DeserializeFromXml(string xml)
-    {
-        using (StringReader sr = new StringReader(xml))
-        {
-            XmlSerializer serializer = new XmlSerializer(typeof(TestResults));
-            return (TestResults)serializer.Deserialize(sr);
-        }
+        return !string.IsNullOrEmpty(Message);
     }
 }
