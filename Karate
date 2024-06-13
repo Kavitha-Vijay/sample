@@ -1,21 +1,28 @@
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 
 public class KarateToOctane {
     private static final String KARATE_RESULTS_PATH = "path/to/karate-summary-json.txt"; // Adjust this path
     private static final String OCTANE_API_URL = "https://your-octane-instance/api"; // Adjust this URL
-    private static final String OCTANE_ACCESS_TOKEN = "your-octane-access-token"; // Adjust this token
+    private static final String CLIENT_ID = "your-client-id"; // Adjust this client ID
+    private static final String CLIENT_SECRET = "your-client-secret"; // Adjust this client secret
 
     public static void main(String[] args) {
         try {
+            // Obtain session cookie
+            String sessionCookie = authenticateAndGetSessionCookie();
+
+            if (sessionCookie == null) {
+                System.err.println("Failed to obtain session cookie.");
+                return;
+            }
+
             // Parse Karate results
             JsonNode karateResults = parseKarateResults(KARATE_RESULTS_PATH);
 
@@ -23,9 +30,27 @@ public class KarateToOctane {
             String octaneFormattedResults = formatResultsForOctane(karateResults);
 
             // Send results to Octane
-            sendResultsToOctane(octaneFormattedResults);
+            sendResultsToOctane(octaneFormattedResults, sessionCookie);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static String authenticateAndGetSessionCookie() {
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        String authBody = "client_id=" + CLIENT_ID + "&client_secret=" + CLIENT_SECRET;
+
+        HttpEntity<String> request = new HttpEntity<>(authBody, headers);
+        ResponseEntity<String> response = restTemplate.postForEntity(OCTANE_API_URL + "/authentication/sign_in", request, String.class);
+
+        if (response.getStatusCode().is2xxSuccessful()) {
+            return response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        } else {
+            System.err.println("Authentication failed: " + response.getStatusCode() + " - " + response.getBody());
+            return null;
         }
     }
 
@@ -40,11 +65,11 @@ public class KarateToOctane {
         return "{ \"release_name\": \"Example Release\", \"backlog_items\": [], \"product_areas\": [], \"test_fields\": [], \"environment\": [], \"test_runs\": [] }";
     }
 
-    private static void sendResultsToOctane(String results) {
+    private static void sendResultsToOctane(String results, String sessionCookie) {
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(OCTANE_ACCESS_TOKEN);
+        headers.set(HttpHeaders.COOKIE, sessionCookie);
 
         HttpEntity<String> request = new HttpEntity<>(results, headers);
         ResponseEntity<String> response = restTemplate.postForEntity(OCTANE_API_URL + "/test-results", request, String.class);
