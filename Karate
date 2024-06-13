@@ -1,0 +1,58 @@
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
+
+import java.io.File;
+import java.io.IOException;
+
+public class KarateToOctane {
+    private static final String KARATE_RESULTS_PATH = "path/to/karate-summary-json.txt"; // Adjust this path
+    private static final String OCTANE_API_URL = "https://your-octane-instance/api"; // Adjust this URL
+    private static final String OCTANE_ACCESS_TOKEN = "your-octane-access-token"; // Adjust this token
+
+    public static void main(String[] args) {
+        try {
+            // Parse Karate results
+            JsonNode karateResults = parseKarateResults(KARATE_RESULTS_PATH);
+
+            // Format results for Octane
+            String octaneFormattedResults = formatResultsForOctane(karateResults);
+
+            // Send results to Octane
+            sendResultsToOctane(octaneFormattedResults);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static JsonNode parseKarateResults(String filePath) throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.readTree(new File(filePath));
+    }
+
+    private static String formatResultsForOctane(JsonNode karateResults) {
+        // Implement your formatting logic here
+        // This is a placeholder example
+        return "{ \"release_name\": \"Example Release\", \"backlog_items\": [], \"product_areas\": [], \"test_fields\": [], \"environment\": [], \"test_runs\": [] }";
+    }
+
+    private static void sendResultsToOctane(String results) {
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(OCTANE_ACCESS_TOKEN);
+
+        HttpEntity<String> request = new HttpEntity<>(results, headers);
+        ResponseEntity<String> response = restTemplate.postForEntity(OCTANE_API_URL + "/test-results", request, String.class);
+
+        if (response.getStatusCode().is2xxSuccessful()) {
+            System.out.println("Results sent successfully: " + response.getBody());
+        } else {
+            System.err.println("Error sending results to Octane: " + response.getStatusCode() + " - " + response.getBody());
+        }
+    }
+}
