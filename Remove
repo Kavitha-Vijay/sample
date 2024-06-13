@@ -1,0 +1,32 @@
+public static class XmlHelper
+{
+    public static void RemoveEmptyNodes(TestResult testResult)
+    {
+        // Remove the release name if it's null or empty
+        if (string.IsNullOrEmpty(testResult.ReleaseName))
+        {
+            testResult.ReleaseName = null;
+        }
+
+        // Filter out empty or null items in lists
+        testResult.BacklogItems = testResult.BacklogItems?.Where(item => !string.IsNullOrEmpty(item.Id)).ToList();
+        testResult.ProductAreas = testResult.ProductAreas?.Where(area => !string.IsNullOrEmpty(area.Id)).ToList();
+        testResult.TestFields = testResult.TestFields?.Where(field => !string.IsNullOrEmpty(field.Type) && !string.IsNullOrEmpty(field.Value)).ToList();
+        testResult.Environment = testResult.Environment?.Where(env => !string.IsNullOrEmpty(env.Type) && !string.IsNullOrEmpty(env.Value)).ToList();
+        testResult.TestRuns = testResult.TestRuns?.Where(run =>
+        {
+            if (run.Error != null && string.IsNullOrEmpty(run.Error.Type) && string.IsNullOrEmpty(run.Error.Message))
+            {
+                run.Error = null;
+            }
+            return !string.IsNullOrEmpty(run.Module) || !string.IsNullOrEmpty(run.Package) || !string.IsNullOrEmpty(run.Class) || !string.IsNullOrEmpty(run.Name) || !string.IsNullOrEmpty(run.Status) || run.Error != null;
+        }).ToList();
+
+        // Check if the lists are empty and set them to null to avoid serialization of empty elements
+        if (testResult.BacklogItems != null && !testResult.BacklogItems.Any()) testResult.BacklogItems = null;
+        if (testResult.ProductAreas != null && !testResult.ProductAreas.Any()) testResult.ProductAreas = null;
+        if (testResult.TestFields != null && !testResult.TestFields.Any()) testResult.TestFields = null;
+        if (testResult.Environment != null && !testResult.Environment.Any()) testResult.Environment = null;
+        if (testResult.TestRuns != null && !testResult.TestRuns.Any()) testResult.TestRuns = null;
+    }
+}
