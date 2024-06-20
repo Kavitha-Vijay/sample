@@ -1,0 +1,131 @@
+configure GitHub Actions to execute tests using an API call to a remote service, such as HyperExecute, you need to define a workflow that makes an API request to start the tests, waits for their completion, and then processes the results. Here’s how you can do it:
+
+Set Up GitHub Actions Workflow
+Include Secrets in GitHub for API Credentials
+Use a Script to Make API Calls and Handle Results
+1. Set Up GitHub Actions Workflow
+Create a workflow file in your GitHub repository to define the steps for executing your tests via an API call.
+
+Example Workflow (.github/workflows/run-tests.yml):
+yaml
+Copy code
+name: Run Tests via API and Post Results to Octane
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install curl
+      run: sudo apt-get install -y curl
+
+    - name: Trigger Test Execution via API
+      id: trigger_tests
+      run: |
+        RESPONSE=$(curl -X POST ${{ secrets.TEST_API_URL }}/start-tests \
+          -H "Content-Type: application/json" \
+          -d "{\"project_id\": \"${{ secrets.PROJECT_ID }}\", \"token\": \"${{ secrets.API_TOKEN }}\"}")
+        echo "response=$RESPONSE" >> $GITHUB_ENV
+        TEST_ID=$(echo $RESPONSE | jq -r '.test_id')
+        echo "test_id=$TEST_ID" >> $GITHUB_ENV
+
+    - name: Wait for Test Completion
+      id: wait_for_tests
+      run: |
+        while true; do
+          STATUS_RESPONSE=$(curl -X GET ${{ secrets.TEST_API_URL }}/test-status \
+            -H "Authorization: Bearer ${{ secrets.API_TOKEN }}" \
+            -d "{\"test_id\": \"$TEST_ID\"}")
+          STATUS=$(echo $STATUS_RESPONSE | jq -r '.status')
+          if [ "$STATUS" == "completed" ]; then
+            echo "Tests completed"
+            break
+          elif [ "$STATUS" == "failed" ]; then
+            echo "Tests failed"
+            exit 1
+          else
+            echo "Tests are still running..."
+            sleep 30
+          fi
+        done
+
+    - name: Download Test Results
+      run: |
+        curl -X GET ${{ secrets.TEST_API_URL }}/download-results \
+          -H "Authorization: Bearer ${{ secrets.API_TOKEN }}" \
+          -d "{\"test_id\": \"$TEST_ID\"}" -o test-results.zip
+        unzip test-results.zip -d test-results
+
+    - name: Post test results to Octane
+      run: ./post_results_to_octane.sh ${{ secrets.OCTANE_BASE_URL }} ${{ secrets.OCTANE_CLIENT_ID }} ${{ secrets.OCTANE_CLIENT_SECRET }} test-results
+2. Include Secrets in GitHub for API Credentials
+To securely store and access your API credentials and other sensitive information, add them as secrets in your GitHub repository:
+
+Go to your repository on GitHub.
+Click on Settings.
+Select Secrets and variables -> Actions.
+Click New repository secret.
+Add the following secrets:
+TEST_API_URL: URL of the API endpoint for starting tests.
+API_TOKEN: Token or key for authenticating with the test API.
+PROJECT_ID: Identifier for your project within the test service.
+OCTANE_BASE_URL
+OCTANE_CLIENT_ID
+OCTANE_CLIENT_SECRET
+3. Use a Script to Make API Calls and Handle Results
+Create a shell script (post_results_to_octane.sh) to post test results to Octane. This script should handle authentication and data posting.
+
+post_results_to_octane.sh:
+sh
+Copy code
+#!/bin/bash
+
+OCTANE_BASE_URL=$1
+OCTANE_CLIENT_ID=$2
+OCTANE_CLIENT_SECRET=$3
+RESULTS_PATH=$4
+
+# Authenticate with Octane and get session cookies
+AUTH_RESPONSE=$(curl -X POST "$OCTANE_BASE_URL/authentication/sign_in" \
+  -H "Content-Type: application/json" \
+  -d "{\"client_id\":\"$OCTANE_CLIENT_ID\",\"client_secret\":\"$OCTANE_CLIENT_SECRET\"}" \
+  -c cookies.txt)
+
+echo "Authentication Response: $AUTH_RESPONSE"
+
+# Parse test results and post to Octane
+for result_file in $RESULTS_PATH/*.json; do
+  echo "Processing $result_file"
+  TEST_RESULTS=$(cat "$result_file")
+
+  curl -X POST "$OCTANE_BASE_URL/test-results" \
+    -H "Content-Type: application/json" \
+    -b cookies.txt \
+    -d "$TEST_RESULTS"
+done
+Make sure the script is executable:
+
+sh
+Copy code
+chmod +x post_results_to_octane.sh
+Summary
+By following these steps, you create a GitHub Actions workflow that:
+
+Checks out your code.
+Installs necessary tools.
+Triggers test execution via an API call.
+Waits for test completion by polling the test status.
+Downloads the test results.
+Posts the test results to Octane using a shell script.
+This approach ensures that your test execution and result posting are automated and integrated within your CI/CD pipeline using GitHub Actions.
