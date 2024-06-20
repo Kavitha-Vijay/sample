@@ -1,0 +1,84 @@
+// features/step-definitions/example.steps.js
+
+const { After, AfterStep, Before, Given, When, Then } = require('@cucumber/cucumber');
+const { chromium } = require('playwright');
+const axios = require('axios');
+let browser, page, testResults = [];
+
+// Before scenario hook: Open browser
+Before(async () => {
+  browser = await chromium.launch();
+});
+
+// After step hook: Capture test results
+AfterStep(async function () {
+  if (!page) return; // Skip if page is not initialized
+
+  const pageTitle = await page.title();
+  testResults.push({
+    module: 'Example Module',
+    package: 'Example Package',
+    class: 'Example Class',
+    name: 'Check Page Title',
+    duration: '5s', // Replace with actual duration
+    status: pageTitle === this.expectedTitle ? 'Passed' : 'Failed',
+    error: pageTitle === this.expectedTitle ? null : { type: 'AssertionError', message: 'Page title mismatch' }
+  });
+});
+
+// After scenario hook: Close browser and post test results to Octane
+After(async function () {
+  if (browser) await browser.close();
+
+  // Post test results to Octane
+  await postTestResultsToOctane();
+});
+
+async function postTestResultsToOctane() {
+  try {
+    // Construct XML payload
+    const xmlPayload = constructXML(testResults);
+
+    // Example: Post XML payload to Octane endpoint
+    const octaneUrl = 'https://your-octane-endpoint/api/tests/results';
+    const response = await axios.post(octaneUrl, xmlPayload, {
+      headers: {
+        'Content-Type': 'application/xml',
+        // Add any necessary authentication headers or tokens
+      }
+    });
+
+    console.log('Test results posted to Octane:', response.data);
+  } catch (error) {
+    console.error('Error posting test results to Octane:', error.message);
+  }
+}
+
+function constructXML(testResults) {
+  let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  xmlString += '<test_result>\n';
+
+  // Iterate through test results and construct XML nodes
+  testResults.forEach((result, index) => {
+    xmlString += `<test_run module="${result.module}" package="${result.package}" class="${result.class}" name="${result.name}" duration="${result.duration}" status="${result.status}">\n`;
+    if (result.error) {
+      xmlString += `<error type="${result.error.type}" message="${result.error.message}" />\n`;
+    }
+    xmlString += '</test_run>\n';
+  });
+
+  xmlString += '</test_result>';
+  return xmlString;
+}
+
+// Cucumber step definitions
+Given('I navigate to {string}', async (url) => {
+  page = await browser.newPage();
+  await page.goto(url);
+});
+
+Then('I expect the title to be {string}', async (expectedTitle) => {
+  this.expectedTitle = expectedTitle; // Store expected title for AfterStep hook
+  const pageTitle = await page.title();
+  expect(pageTitle).toBe(expectedTitle);
+});
