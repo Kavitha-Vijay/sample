@@ -1,0 +1,51 @@
+using System;
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public class TestIdAttribute : Attribute
+{
+    public string TestId { get; }
+
+    public TestIdAttribute(string testId)
+    {
+        TestId = testId;
+    }
+}
+
+[Binding]
+public class ExampleSteps
+{
+    private readonly ScenarioContext _scenarioContext;
+
+    public ExampleSteps(ScenarioContext scenarioContext)
+    {
+        _scenarioContext = scenarioContext;
+    }
+
+    [Given(@"I have a precondition")]
+    [TestId("12345")]
+    public void GivenIHaveAPrecondition()
+    {
+        // Use reflection to read the TestId attribute
+        var method = typeof(ExampleSteps).GetMethod(nameof(GivenIHaveAPrecondition));
+        var testIdAttribute = method.GetCustomAttributes(typeof(TestIdAttribute), false)
+                                    .FirstOrDefault() as TestIdAttribute;
+
+        if (testIdAttribute != null)
+        {
+            var testId = testIdAttribute.TestId;
+            Console.WriteLine($"TestId: {testId}");
+        }
+    }
+
+    [When(@"I perform an action")]
+    public void WhenIPerformAnAction()
+    {
+        // Perform action
+    }
+
+    [Then(@"I should see a result")]
+    public void ThenIShouldSeeAResult()
+    {
+        // Validate result
+    }
+}
