@@ -22,22 +22,20 @@ jobs:
         distribution: 'adopt'
         java-version: '11'
 
-    - name: Build with Maven
-      run: mvn clean install
+    - name: Grant execute permission for gradlew
+      run: chmod +x ./gradlew
+
+    - name: Build with Gradle
+      run: ./gradlew build
 
     - name: Run Karate Tests
-      run: mvn test
+      run: ./gradlew test
 
     - name: Upload Karate test results
       uses: actions/upload-artifact@v2
       with:
         name: karate-results
-        path: target/karate-reports
+        path: build/karate-reports
 
     - name: Post test results to Octane
-      run: mvn exec:java -Dexec.mainClass="com.yourproject.PostKarateResultsToOctane"
-      env:
-        OCTANE_BASE_URL: ${{ secrets.OCTANE_BASE_URL }}
-        OCTANE_CLIENT_ID: ${{ secrets.OCTANE_CLIENT_ID }}
-        OCTANE_CLIENT_SECRET: ${{ secrets.OCTANE_CLIENT_SECRET }}
-        OCTANE_PROXY_URL: ${{ secrets.OCTANE_PROXY_URL }}
+      run: ./post_results_to_octane.sh ${{ secrets.OCTANE_BASE_URL }} ${{ secrets.OCTANE_CLIENT_ID }} ${{ secrets.OCTANE_CLIENT_SECRET }} build/karate-reports
