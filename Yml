@@ -1,0 +1,43 @@
+name: Run Karate Tests and Post Results to Octane
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up JDK 11
+      uses: actions/setup-java@v2
+      with:
+        distribution: 'adopt'
+        java-version: '11'
+
+    - name: Build with Maven
+      run: mvn clean install
+
+    - name: Run Karate Tests
+      run: mvn test
+
+    - name: Upload Karate test results
+      uses: actions/upload-artifact@v2
+      with:
+        name: karate-results
+        path: target/karate-reports
+
+    - name: Post test results to Octane
+      run: mvn exec:java -Dexec.mainClass="com.yourproject.PostKarateResultsToOctane"
+      env:
+        OCTANE_BASE_URL: ${{ secrets.OCTANE_BASE_URL }}
+        OCTANE_CLIENT_ID: ${{ secrets.OCTANE_CLIENT_ID }}
+        OCTANE_CLIENT_SECRET: ${{ secrets.OCTANE_CLIENT_SECRET }}
+        OCTANE_PROXY_URL: ${{ secrets.OCTANE_PROXY_URL }}
