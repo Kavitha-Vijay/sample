@@ -1,0 +1,40 @@
+const fs = require('fs');
+const cheerio = require('cheerio');
+
+// Read the HTML file
+const html = fs.readFileSync('path/to/cucumber-report.html', 'utf8');
+
+// Load the HTML into cheerio
+const $ = cheerio.load(html);
+
+// Parse the HTML report
+const testResults = [];
+
+$('.scenario').each((i, scenario) => {
+  const scenarioName = $(scenario).find('.scenario-name').text().trim();
+  const steps = [];
+
+  $(scenario).find('.step').each((j, step) => {
+    const stepDescription = $(step).find('.step-name').text().trim();
+    const stepStatus = $(step).find('.step-status').text().trim();
+    const stepDuration = $(step).find('.step-duration').text().trim();
+
+    steps.push({
+      description: stepDescription,
+      status: stepStatus,
+      duration: stepDuration,
+    });
+  });
+
+  testResults.push({
+    scenario: scenarioName,
+    steps: steps,
+  });
+});
+
+console.log(JSON.stringify(testResults, null, 2));
+
+// Save the parsed results to a JSON file
+fs.writeFileSync('parsedTestResults.json', JSON.stringify(testResults, null, 2));
+
+console.log('Parsed results saved to parsedTestResults.json');
