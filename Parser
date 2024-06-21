@@ -1,40 +1,37 @@
 const fs = require('fs');
-const cheerio = require('cheerio');
 
 // Read the HTML file
 const html = fs.readFileSync('path/to/cucumber-report.html', 'utf8');
 
-// Load the HTML into cheerio
-const $ = cheerio.load(html);
+// Function to extract text content between tags
+function extractText(html, tag) {
+  const regex = new RegExp(`<${tag}[^>]*>(.*?)</${tag}>`, 'gs');
+  const matches = [...html.matchAll(regex)];
+  return matches.map(match => match[1].trim());
+}
+
+// Function to extract attributes from a tag
+function extractAttributes(html, tag) {
+  const regex = new RegExp(`<${tag}[^>]*>`, 'g');
+  const match = regex.exec(html);
+  if (!match) return {};
+  const attrs = {};
+  const attrRegex = /(\w+)=["']([^"']*)["']/g;
+  let attrMatch;
+  while ((attrMatch = attrRegex.exec(match[0]))) {
+    attrs[attrMatch[1]] = attrMatch[2];
+  }
+  return attrs;
+}
 
 // Parse the HTML report
+const scenarios = extractText(html, 'div'); // assuming scenarios are in <div class="scenario">
 const testResults = [];
 
-$('.scenario').each((i, scenario) => {
-  const scenarioName = $(scenario).find('.scenario-name').text().trim();
-  const steps = [];
-
-  $(scenario).find('.step').each((j, step) => {
-    const stepDescription = $(step).find('.step-name').text().trim();
-    const stepStatus = $(step).find('.step-status').text().trim();
-    const stepDuration = $(step).find('.step-duration').text().trim();
-
-    steps.push({
-      description: stepDescription,
-      status: stepStatus,
-      duration: stepDuration,
-    });
-  });
-
-  testResults.push({
-    scenario: scenarioName,
-    steps: steps,
-  });
-});
-
-console.log(JSON.stringify(testResults, null, 2));
-
-// Save the parsed results to a JSON file
-fs.writeFileSync('parsedTestResults.json', JSON.stringify(testResults, null, 2));
-
-console.log('Parsed results saved to parsedTestResults.json');
+scenarios.forEach(scenarioHtml => {
+  const scenarioName = extractText(scenarioHtml, 'span')[0]; // assuming scenario names are in <span class="scenario-name">
+  const stepsHtml = extractText(scenarioHtml, 'div'); // assuming steps are in <div class="step">
+  const steps = stepsHtml.map(stepHtml => {
+    return {
+      description: extractText(stepHtml, 'span')[0], // assuming step descriptions are in <span class="step-name">
+      status: extractAttributes(stepHtml
