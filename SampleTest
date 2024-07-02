@@ -1,0 +1,57 @@
+const { Eyes, Target, ConsoleLogHandler, Configuration } = require('@applitools/eyes-playwright');
+const { testConfig } = require('@playwright/test');
+const applitoolsConfig = testConfig.applitools;
+
+class VisualTestHelper {
+  constructor() {
+    if (!applitoolsConfig.isEnabled) {
+      this.isEnabled = false;
+      return;
+    }
+
+    this.isEnabled = true;
+    this.eyes = new Eyes();
+
+    const eyesConfig = new Configuration();
+    eyesConfig.setApiKey(applitoolsConfig.apiKey);
+
+    if (applitoolsConfig.serverUrl) {
+      eyesConfig.setServerUrl(applitoolsConfig.serverUrl);
+    }
+
+    this.eyes.setConfiguration(eyesConfig);
+    this.eyes.setLogHandler(new ConsoleLogHandler(true));
+  }
+
+  async openEyes(page, testName) {
+    if (!this.isEnabled) return;
+
+    await this.eyes.open(page, 'My App', testName, { width: 800, height: 600 });
+  }
+
+  async checkWindow(tag) {
+    if (!this.isEnabled) return;
+
+    await this.eyes.check(tag, Target.window());
+  }
+
+  async checkElement(element, tag) {
+    if (!this.isEnabled) return;
+
+    await this.eyes.check(tag, Target.region(element));
+  }
+
+  async closeEyes() {
+    if (!this.isEnabled) return;
+
+    await this.eyes.close();
+  }
+
+  async abortIfNotClosed() {
+    if (!this.isEnabled) return;
+
+    await this.eyes.abortIfNotClosed();
+  }
+}
+
+module.exports = VisualTestHelper;
