@@ -1,16 +1,12 @@
-const { Eyes, Target, ConsoleLogHandler, Configuration } = require('@applitools/eyes-playwright');
+const { Eyes, Target, Configuration, ConsoleLogHandler } = require('@applitools/eyes-playwright');
 const config = require('./applitools.config');
 
 class VisualTestHelper {
   constructor() {
-    if (!config.isEnabled) {
-      this.isEnabled = false;
-      return;
-    }
+    this.isEnabled = config.isEnabled;
+    if (!this.isEnabled) return;
 
-    this.isEnabled = true;
     this.eyes = new Eyes();
-
     const eyesConfig = new Configuration();
     eyesConfig.setApiKey(config.apiKey);
 
@@ -23,7 +19,7 @@ class VisualTestHelper {
     this.viewport = config.viewport || { width: 800, height: 600 }; // Default viewport if not set
   }
 
-  async openEyes(page, testName) {
+  async initializeEyes(page, testName) {
     if (!this.isEnabled) return;
 
     await this.eyes.open(page, 'My App', testName, this.viewport);
