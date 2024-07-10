@@ -9,7 +9,7 @@ describe('Visual Testing with Applitools and Playwright', () => {
   beforeAll(async () => {
     browser = await chromium.launch();
     page = await browser.newPage();
-    visualTestHelper = new VisualTestHelper(); // This should work correctly
+    visualTestHelper = new VisualTestHelper();
   });
 
   afterAll(async () => {
@@ -17,14 +17,14 @@ describe('Visual Testing with Applitools and Playwright', () => {
   });
 
   test('Home Page Visual Test', async () => {
-    await visualTestHelper.openEyes(page, 'Home Page Test');
+    await visualTestHelper.initializeEyes(page, 'Home Page Test');
     await page.goto('https://example.com');
     await visualTestHelper.checkWindow('Home Page');
     await visualTestHelper.closeEyes();
   });
 
   test('Specific Element Visual Test', async () => {
-    await visualTestHelper.openEyes(page, 'Element Test');
+    await visualTestHelper.initializeEyes(page, 'Element Test');
     await page.goto('https://example.com');
     const element = await page.$('h1');
     await visualTestHelper.checkElement(element, 'Header Element');
