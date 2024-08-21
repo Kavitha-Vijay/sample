@@ -1,0 +1,60 @@
+using System;
+using Applitools.Selenium;
+using Applitools.Playwright;
+using Microsoft.Playwright;
+using NUnit.Framework;
+
+namespace PlaywrightApplitoolsExample
+{
+    public class VisualTests
+    {
+        private IPlaywright _playwright;
+        private IBrowser _browser;
+        private Eyes _eyes;
+
+        [SetUp]
+        public async System.Threading.Tasks.Task SetupAsync()
+        {
+            _playwright = await Playwright.CreateAsync();
+            _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
+
+            _eyes = new Eyes();
+            _eyes.ApiKey = "YOUR_APPLITOOLS_API_KEY";
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task BasicTestAsync()
+        {
+            var context = await _browser.NewContextAsync();
+            var page = await context.NewPageAsync();
+
+            try
+            {
+                await page.GotoAsync("https://example.com");
+
+                // Initialize Applitools Eyes with Playwright
+                var eyesDriver = new PlaywrightEyes(_eyes, page);
+
+                // Start visual testing
+                _eyes.Open(eyesDriver, "Example App", "Playwright with Applitools Test");
+
+                // Take a screenshot and validate
+                _eyes.CheckWindow("Home Page");
+
+                // Close Eyes and get the result
+                _eyes.Close();
+            }
+            finally
+            {
+                await _browser.CloseAsync();
+                _eyes.AbortIfNotClosed();
+            }
+        }
+
+        [TearDown]
+        public void Teardown()
+        {
+            _eyes.Dispose();
+        }
+    }
+}
