@@ -1,7 +1,6 @@
 using System;
 using System.Threading.Tasks;
 using Applitools;
-using Applitools.Selenium;
 using Applitools.Playwright;
 using Microsoft.Playwright;
 
@@ -11,7 +10,7 @@ namespace PlaywrightApplitoolsDemo
     {
         static async Task Main(string[] args)
         {
-            // Initialize Applitools Eyes
+            // Set up Applitools Eyes
             var eyes = new Eyes();
             eyes.ApiKey = "YOUR_APPLITOOLS_API_KEY"; // Replace with your Applitools API key
 
@@ -24,6 +23,7 @@ namespace PlaywrightApplitoolsDemo
             try
             {
                 // Initialize Applitools Eyes with Playwright
+                eyes.SetLogHandler(new StdoutLogHandler(true)); // Optional: Enables Applitools logging to the console
                 var eyesDriver = new PlaywrightEyes(eyes, page);
 
                 // Start the visual test
@@ -32,7 +32,7 @@ namespace PlaywrightApplitoolsDemo
                 // Navigate to the website
                 await page.GotoAsync("https://example.com");
 
-                // Take a screenshot and validate with Applitools
+                // Capture a screenshot and validate with Applitools
                 eyes.CheckWindow("Home Page");
 
                 // Close Eyes and get the results
@@ -44,7 +44,7 @@ namespace PlaywrightApplitoolsDemo
             }
             finally
             {
-                // Ensure browser and Eyes are properly closed
+                // Ensure the browser and Eyes are properly closed
                 await browser.CloseAsync();
                 eyes.AbortIfNotClosed();
             }
