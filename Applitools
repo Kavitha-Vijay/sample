@@ -4,50 +4,74 @@ using Applitools;
 using Applitools.Playwright;
 using Microsoft.Playwright;
 
-namespace PlaywrightApplitoolsDemo
+namespace PlaywrightApplitoolsLibDemo
 {
-    class Program
+    public class ApplitoolsLibrary
     {
-        static async Task Main(string[] args)
+        private Eyes _eyes;
+        private IPage _page;
+        private string _appName;
+        private string _testName;
+
+        public ApplitoolsLibrary(string apiKey)
         {
-            // Set up Applitools Eyes
-            var eyes = new Eyes();
-            eyes.ApiKey = "YOUR_APPLITOOLS_API_KEY"; // Replace with your Applitools API key
+            _eyes = new Eyes();
+            _eyes.ApiKey = apiKey;
+        }
 
-            // Set up Playwright
+        // Method to initialize Playwright and Applitools Eyes
+        public async Task InitializePlaywrightAndApplitoolsAsync(string browserType = "chromium", string appName = "Default App", string testName = "Default Test")
+        {
+            _appName = appName;
+            _testName = testName;
+
             var playwright = await Playwright.CreateAsync();
-            var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
+            IBrowser browser;
+
+            switch (browserType.ToLower())
+            {
+                case "chromium":
+                    browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+                    break;
+                case "firefox":
+                    browser = await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+                    break;
+                case "webkit":
+                    browser = await playwright.Webkit.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+                    break;
+                default:
+                    throw new ArgumentException($"Unsupported browser type: {browserType}");
+            }
+
             var context = await browser.NewContextAsync();
-            var page = await context.NewPageAsync();
+            _page = await context.NewPageAsync();
+        }
 
-            try
-            {
-                // Initialize Applitools Eyes with Playwright
-                eyes.SetLogHandler(new StdoutLogHandler(true)); // Optional: Enables Applitools logging to the console
-                var eyesDriver = new PlaywrightEyes(eyes, page);
+        // Method to start visual testing
+        public void StartVisualTest()
+        {
+            var eyesDriver = new PlaywrightEyes(_eyes, _page);
+            _eyes.Open(eyesDriver, _appName, _testName);
+        }
 
-                // Start the visual test
-                eyes.Open(eyesDriver, "Playwright .NET App", "Home Page Test");
+        // Method to navigate to a URL and capture a screenshot
+        public async Task CaptureScreenshotAsync(string url, string checkpointName)
+        {
+            await _page.GotoAsync(url);
+            _eyes.CheckWindow(checkpointName);
+        }
 
-                // Navigate to the website
-                await page.GotoAsync("https://example.com");
+        // Method to close the Applitools test and upload results
+        public void EndVisualTest()
+        {
+            _eyes.Close();
+        }
 
-                // Capture a screenshot and validate with Applitools
-                eyes.CheckWindow("Home Page");
-
-                // Close Eyes and get the results
-                eyes.Close();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-            }
-            finally
-            {
-                // Ensure the browser and Eyes are properly closed
-                await browser.CloseAsync();
-                eyes.AbortIfNotClosed();
-            }
+        // Method to clean up resources
+        public async Task CleanupAsync()
+        {
+            await _page.Context.Browser.CloseAsync();
+            _eyes.AbortIfNotClosed();
         }
     }
 }
