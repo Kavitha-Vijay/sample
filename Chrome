@@ -1,0 +1,76 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
+public class ChromeVersionChecker {
+
+    public static void main(String[] args) {
+        if (isChromeInstalled()) {
+            String version = getChromeVersion();
+            if (version != null) {
+                System.out.println("Google Chrome is installed.");
+                System.out.println("Version: " + version);
+            } else {
+                System.out.println("Unable to retrieve the Chrome version.");
+            }
+        } else {
+            System.out.println("Google Chrome is not installed.");
+        }
+    }
+
+    public static boolean isChromeInstalled() {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            return checkCommand("reg query \"HKLM\\Software\\Google\\Chrome\\BLBeacon\" /v version");
+        } else if (os.contains("mac")) {
+            return checkCommand("/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --version");
+        } else if (os.contains("nix") || os.contains("nux")) {
+            return checkCommand("google-chrome --version");
+        }
+        return false;
+    }
+
+    public static String getChromeVersion() {
+        String os = System.getProperty("os.name").toLowerCase();
+        String command = null;
+
+        if (os.contains("win")) {
+            command = "reg query \"HKLM\\Software\\Google\\Chrome\\BLBeacon\" /v version";
+        } else if (os.contains("mac")) {
+            command = "/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --version";
+        } else if (os.contains("nix") || os.contains("nux")) {
+            command = "google-chrome --version";
+        }
+
+        if (command != null) {
+            return executeCommandAndExtractVersion(command);
+        }
+        return null;
+    }
+
+    private static boolean checkCommand(String command) {
+        try {
+            Process process = Runtime.getRuntime().exec(command);
+            process.waitFor();
+            return process.exitValue() == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static String executeCommandAndExtractVersion(String command) {
+        try {
+            Process process = Runtime.getRuntime().exec(command);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.contains("version") || line.contains("Google Chrome")) {
+                    return line.replaceAll("[^\\d.]", ""); // Extract version number
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+}
