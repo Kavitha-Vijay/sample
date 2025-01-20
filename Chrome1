@@ -1,0 +1,121 @@
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.file.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+public class ChromeDownloader {
+
+    public static void main(String[] args) {
+        String fileURL = "https://example.com/path-to-your-zip-file.zip"; // Replace with your ZIP file URL
+        String downloadDir = "C:\\ProgramData\\downloaded_zip"; // Temp directory to download ZIP
+        String destinationPath = "C:\\ProgramData\\chrome.exe"; // Path to copy chrome.exe
+
+        try {
+            // Step 1: Download the ZIP file
+            System.out.println("Downloading ZIP file...");
+            String zipFilePath = downloadFile(fileURL, downloadDir);
+            System.out.println("ZIP file downloaded to: " + zipFilePath);
+
+            // Step 2: Unzip the downloaded file
+            System.out.println("Extracting ZIP file...");
+            String extractedFolder = unzipFile(zipFilePath, downloadDir);
+            System.out.println("Files extracted to: " + extractedFolder);
+
+            // Step 3: Find chrome.exe and copy it to C:\ProgramData
+            System.out.println("Copying chrome.exe...");
+            copyChromeExe(extractedFolder, destinationPath);
+            System.out.println("chrome.exe successfully copied to: " + destinationPath);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Step 1: Download the ZIP file
+    public static String downloadFile(String fileURL, String saveDir) throws IOException {
+        URL url = new URL(fileURL);
+        HttpURLConnection httpConnection = (HttpURLConnection) url.openConnection();
+        httpConnection.setRequestMethod("GET");
+        int responseCode = httpConnection.getResponseCode();
+
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            String fileName = "";
+            String disposition = httpConnection.getHeaderField("Content-Disposition");
+
+            if (disposition != null && disposition.contains("filename=")) {
+                fileName = disposition.split("filename=")[1].replace("\"", "").trim();
+            } else {
+                fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1);
+            }
+
+            File saveDirectory = new File(saveDir);
+            if (!saveDirectory.exists()) {
+                saveDirectory.mkdirs();
+            }
+
+            String filePath = saveDir + File.separator + fileName;
+            try (InputStream inputStream = httpConnection.getInputStream();
+                 FileOutputStream outputStream = new FileOutputStream(filePath)) {
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+            }
+            httpConnection.disconnect();
+            return filePath;
+        } else {
+            throw new IOException("Failed to download file: HTTP response code " + responseCode);
+        }
+    }
+
+    // Step 2: Unzip the downloaded file
+    public static String unzipFile(String zipFilePath, String destDir) throws IOException {
+        File destDirectory = new File(destDir);
+        if (!destDirectory.exists()) {
+            destDirectory.mkdirs();
+        }
+
+        String extractedFolder = null;
+        try (ZipInputStream zipIn = new ZipInputStream(new FileInputStream(zipFilePath))) {
+            ZipEntry entry = zipIn.getNextEntry();
+            while (entry != null) {
+                File file = new File(destDir, entry.getName());
+                if (entry.isDirectory()) {
+                    file.mkdirs();
+                } else {
+                    new File(file.getParent()).mkdirs();
+                    try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file))) {
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+                        while ((bytesRead = zipIn.read(buffer)) != -1) {
+                            bos.write(buffer, 0, bytesRead);
+                        }
+                    }
+                }
+
+                if (extractedFolder == null) {
+                    extractedFolder = destDir + File.separator + entry.getName().split("/")[0];
+                }
+
+                zipIn.closeEntry();
+                entry = zipIn.getNextEntry();
+            }
+        }
+        return extractedFolder;
+    }
+
+    // Step 3: Copy chrome.exe to C:\ProgramData
+    public static void copyChromeExe(String sourceFolder, String destinationPath) throws IOException {
+        File sourceFile = new File(sourceFolder, "chrome.exe"); // Look for chrome.exe in extracted folder
+        File destinationFile = new File(destinationPath);
+
+        if (!sourceFile.exists()) {
+            throw new FileNotFoundException("chrome.exe not found in extracted folder: " + sourceFile.getAbsolutePath());
+        }
+
+        Files.copy(sourceFile.toPath(), destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    }
+}
