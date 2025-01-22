@@ -1,1 +1,116 @@
 
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.file.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+public class ChromeDriverDownloader {
+
+    public static void main(String[] args) {
+        try {
+            // Step 1: Download the ChromeDriver ZIP
+            String zipUrl = "https://example.com/chromedriver.zip"; // Replace with the actual URL
+            String downloadPath = "chromedriver.zip";
+            System.out.println("Downloading ChromeDriver...");
+            downloadFile(zipUrl, downloadPath);
+            System.out.println("ChromeDriver ZIP downloaded: " + downloadPath);
+
+            // Step 2: Extract the ZIP
+            String outputDir = "chromedriver_extracted";
+            System.out.println("Extracting ChromeDriver...");
+            unzipFile(downloadPath, outputDir);
+            System.out.println("ChromeDriver extracted to: " + outputDir);
+
+            // Step 3: Locate and copy chromedriver.exe
+            String targetPath = "C:\\ProgramData\\chromedriver.exe";
+            copyChromeDriver(outputDir, targetPath);
+            System.out.println("ChromeDriver copied to: " + targetPath);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Step 1: Download the ZIP file
+    public static void downloadFile(String fileURL, String saveFilePath) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(fileURL).openConnection();
+        connection.setRequestMethod("GET");
+
+        if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+            try (InputStream inputStream = connection.getInputStream();
+                 FileOutputStream outputStream = new FileOutputStream(saveFilePath)) {
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+            }
+        } else {
+            throw new IOException("Failed to download file: " + connection.getResponseCode());
+        }
+    }
+
+    // Step 2: Extract the ZIP file, including subfolders
+    public static void unzipFile(String zipFilePath, String destDir) throws IOException {
+        File destDirectory = new File(destDir);
+        if (!destDirectory.exists()) {
+            destDirectory.mkdirs();
+        }
+
+        try (ZipInputStream zipIn = new ZipInputStream(new FileInputStream(zipFilePath))) {
+            ZipEntry entry = zipIn.getNextEntry();
+            while (entry != null) {
+                File file = new File(destDir, entry.getName());
+                if (entry.isDirectory()) {
+                    file.mkdirs();
+                } else {
+                    new File(file.getParent()).mkdirs();
+                    try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file))) {
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+                        while ((bytesRead = zipIn.read(buffer)) != -1) {
+                            bos.write(buffer, 0, bytesRead);
+                        }
+                    }
+                }
+                zipIn.closeEntry();
+                entry = zipIn.getNextEntry();
+            }
+        }
+    }
+
+    // Step 3: Locate and copy chromedriver.exe
+    public static void copyChromeDriver(String extractedDir, String targetPath) throws IOException {
+        // Search for chromedriver.exe in the extracted folder
+        File extractedFolder = new File(extractedDir);
+
+        // Use recursive search to find chromedriver.exe in nested folders
+        File chromedriverFile = findFile(extractedFolder, "chromedriver.exe");
+
+        if (chromedriverFile == null) {
+            throw new FileNotFoundException("chromedriver.exe not found in extracted folder: " + extractedDir);
+        }
+
+        // Copy chromedriver.exe to the target location
+        Files.copy(chromedriverFile.toPath(), Paths.get(targetPath), StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    // Recursive method to locate a specific file within nested folders
+    public static File findFile(File folder, String fileName) {
+        if (folder.isDirectory()) {
+            for (File file : folder.listFiles()) {
+                if (file.isDirectory()) {
+                    File found = findFile(file, fileName);
+                    if (found != null) {
+                        return found;
+                    }
+                } else if (file.getName().equalsIgnoreCase(fileName)) {
+                    return file;
+                }
+            }
+        }
+        return null;
+    }
+}
