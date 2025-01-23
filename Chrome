@@ -172,3 +172,89 @@ public class CopyFiles {
         });
     }
 }
+
+
+
+
+
+
+import java.io.*;
+import java.nio.file.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+public class UnzipWithRewrite {
+
+    public static void main(String[] args) {
+        // Path to the ZIP file
+        String zipFilePath = "path/to/yourfile.zip"; // Replace with the actual ZIP file path
+        // Destination folder to unzip
+        String destDir = "path/to/extracted_folder"; // Replace with the actual extraction path
+
+        try {
+            System.out.println("Preparing to extract ZIP file...");
+            unzipWithRewrite(zipFilePath, destDir);
+            System.out.println("ZIP file extracted to: " + destDir);
+        } catch (IOException e) {
+            System.err.println("An error occurred during extraction: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Unzips a ZIP file, rewriting the contents if the destination folder already exists.
+     *
+     * @param zipFilePath The path to the ZIP file.
+     * @param destDir     The destination directory where files will be extracted.
+     * @throws IOException If an I/O error occurs.
+     */
+    public static void unzipWithRewrite(String zipFilePath, String destDir) throws IOException {
+        File destDirectory = new File(destDir);
+
+        // If the destination directory exists, delete it and its contents
+        if (destDirectory.exists()) {
+            System.out.println("Destination folder already exists. Deleting...");
+            deleteFolder(destDirectory);
+        }
+
+        // Create a fresh destination directory
+        destDirectory.mkdirs();
+
+        // Extract the ZIP file
+        try (ZipInputStream zipIn = new ZipInputStream(new FileInputStream(zipFilePath))) {
+            ZipEntry entry = zipIn.getNextEntry();
+            while (entry != null) {
+                File file = new File(destDir, entry.getName());
+                if (entry.isDirectory()) {
+                    file.mkdirs(); // Create directories
+                } else {
+                    new File(file.getParent()).mkdirs(); // Ensure parent directories exist
+                    try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file))) {
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+                        while ((bytesRead = zipIn.read(buffer)) != -1) {
+                            bos.write(buffer, 0, bytesRead);
+                        }
+                    }
+                }
+                zipIn.closeEntry();
+                entry = zipIn.getNextEntry();
+            }
+        }
+    }
+
+    /**
+     * Deletes a folder and all its contents recursively.
+     *
+     * @param folder The folder to delete.
+     * @throws IOException If an I/O error occurs while deleting files.
+     */
+    public static void deleteFolder(File folder) throws IOException {
+        if (folder.isDirectory()) {
+            for (File file : folder.listFiles()) {
+                deleteFolder(file); // Recursively delete subfolders and files
+            }
+        }
+        Files.delete(folder.toPath()); // Delete the folder itself
+    }
+}
