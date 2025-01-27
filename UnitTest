@@ -1,0 +1,65 @@
+package com.example;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.io.IOException;
+import java.nio.file.*;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class LibTest {
+
+    private Path mockExtractedDir;
+    private Path mockDriverFile;
+    private Path mockDestinationDir;
+
+    @BeforeEach
+    void setup() throws IOException {
+        // Mock paths
+        mockExtractedDir = Files.createTempDirectory("extracted");
+        mockDestinationDir = Files.createTempDirectory("drivers");
+
+        // Create a dummy driver file in the mock extracted directory
+        mockDriverFile = Files.createFile(mockExtractedDir.resolve("chromedriver.exe"));
+    }
+
+    @Test
+    void testReplaceChromeDriver_Success() throws IOException {
+        // Mock the static findDriver method to return the driver file path
+        Lib utilitySpy = Mockito.spy(Lib.class);
+        doReturn(mockDriverFile).when(utilitySpy).findDriver(mockExtractedDir, "chromedriver.exe");
+
+        // Call replacechromedriver
+        Lib.replacechromedriver("chrome");
+
+        // Assert the file was copied to the destination
+        Path copiedFile = mockDestinationDir.resolve("chromedriver.exe");
+        assertTrue(Files.exists(copiedFile));
+    }
+
+    @Test
+    void testReplaceChromeDriver_FileNotFound() {
+        // Mock an empty extracted directory (no driver file)
+        Path emptyExtractedDir = mockExtractedDir.resolve("empty");
+        assertThrows(IOException.class, () -> Lib.replacechromedriver("chrome"));
+    }
+
+    @Test
+    void testReplaceChromeDriver_UnsupportedBrowser() {
+        // Test unsupported browser scenario
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> Lib.replacechromedriver("firefox"));
+        assertEquals("Unsupported browser: firefox", exception.getMessage());
+    }
+
+    @Test
+    void testReplaceChromeDriver_ErrorDuringCopy() throws IOException {
+        // Simulate an error during file copy
+        Files.delete(mockDriverFile); // Delete the driver file to simulate an error
+
+        Exception exception = assertThrows(RuntimeException.class, () -> Lib.replacechromedriver("chrome"));
+        assertTrue(exception.getMessage().contains("Chrome driver not found in the extracted folder."));
+    }
+}
