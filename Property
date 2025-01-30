@@ -1,0 +1,35 @@
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Properties;
+
+public class ReadPropertiesFile {
+    public static void main(String[] args) {
+        // Specify the path to your application.properties file
+        String propertiesFilePath = "path/to/your/application.properties";
+
+        // Create a Properties object
+        Properties properties = new Properties();
+
+        try (FileInputStream input = new FileInputStream(propertiesFilePath)) {
+            // Load the properties file
+            properties.load(input);
+
+            // Read properties
+            String appName = properties.getProperty("app.name");
+            String appVersion = properties.getProperty("app.version");
+            String dbUrl = properties.getProperty("database.url");
+            String dbUsername = properties.getProperty("database.username");
+            String dbPassword = properties.getProperty("database.password");
+
+            // Print the values
+            System.out.println("App Name: " + appName);
+            System.out.println("App Version: " + appVersion);
+            System.out.println("Database URL: " + dbUrl);
+            System.out.println("Database Username: " + dbUsername);
+            System.out.println("Database Password: " + dbPassword);
+
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+}
