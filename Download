@@ -1,0 +1,90 @@
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.file.*;
+import java.util.regex.*;
+
+public class ChromeDriverUpdater {
+    private static final String DRIVER_URL_TEMPLATE = "https://storage.googleapis.com/chrome-for-testing-public/%s/chromedriver/win64/chromedriver.zip";
+    private static final String CHROME_VERSION_URL = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
+    private static final String DRIVER_DEST_DIR = "C:\\chromedriver";
+
+    public static void main(String[] args) {
+        try {
+            String majorVersion = getInstalledChromeMajorVersion();
+            if (majorVersion == null) {
+                System.out.println("Could not detect Chrome version.");
+                return;
+            }
+            
+            System.out.println("Detected Chrome major version: " + majorVersion);
+
+            String latestDriverVersion = getLatestMatchingChromeDriver(majorVersion);
+            if (latestDriverVersion == null) {
+                System.out.println("No matching ChromeDriver version found for Chrome " + majorVersion);
+                return;
+            }
+
+            System.out.println("Latest ChromeDriver for Chrome " + majorVersion + ": " + latestDriverVersion);
+            downloadAndExtractChromeDriver(latestDriverVersion);
+            System.out.println("ChromeDriver updated successfully!");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static String getInstalledChromeMajorVersion() throws IOException {
+        Process process = Runtime.getRuntime().exec("reg query \"HKLM\\Software\\Google\\Chrome\\BLBeacon\" /v version");
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        String line;
+        while ((line = reader.readLine()) != null) {
+            Matcher matcher = Pattern.compile("\\d+\\.\\d+\\.\\d+\\.\\d+").matcher(line);
+            if (matcher.find()) {
+                return matcher.group().split("\\.")[0]; // Extract major version
+            }
+        }
+        return null;
+    }
+
+    private static String getLatestMatchingChromeDriver(String majorVersion) throws IOException {
+        URL url = new URL(CHROME_VERSION_URL);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder response = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+        reader.close();
+
+        Pattern pattern = Pattern.compile("\"version\":\"(" + majorVersion + "\\.\\d+\\.\\d+\\.\\d+)\"");
+        Matcher matcher = pattern.matcher(response.toString());
+
+        String latestVersion = null;
+        while (matcher.find()) {
+            latestVersion = matcher.group(1);
+        }
+
+        return latestVersion;
+    }
+
+    private static void downloadAndExtractChromeDriver(String driverVersion) throws IOException {
+        String driverUrl = String.format(DRIVER_URL_TEMPLATE, driverVersion);
+        String zipPath = DRIVER_DEST_DIR + "\\chromedriver.zip";
+
+        // Download ChromeDriver
+        try (InputStream in = new URL(driverUrl).openStream()) {
+            Files.copy(in, Paths.get(zipPath), StandardCopyOption.REPLACE_EXISTING);
+        }
+
+        // Extract ChromeDriver
+        Path extractPath = Paths.get(DRIVER_DEST_DIR);
+        if (!Files.exists(extractPath)) {
+            Files.createDirectories(extractPath);
+        }
+        Runtime.getRuntime().exec("powershell Expand-Archive -Path " + zipPath + " -DestinationPath " + DRIVER_DEST_DIR);
+    }
+}
