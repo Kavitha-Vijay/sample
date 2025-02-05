@@ -1,0 +1,8 @@
+{
+  "uri": "https://your-artifactory.com/artifactory/api/storage/my-repo/chromedriver",
+  "children": [
+    { "uri": "/114.0.5735.90", "folder": true },
+    { "uri": "/120.0.6099.62", "folder": true },
+    { "uri": "/131.0.6534.60", "folder": true }
+  ]
+}
