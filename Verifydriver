@@ -1,0 +1,29 @@
+import java.io.File;
+
+public class DriverCheck {
+    public static void main(String[] args) {
+        // Ensure two arguments are passed (folder path and driver name)
+        if (args.length < 2) {
+            System.out.println("Usage: java DriverCheck <folder-path> <driver-name>");
+            return;
+        }
+
+        // Get parameters
+        String folderPath = args[0];
+        String driverName = args[1];
+
+        // Check in the provided folder path
+        File currentDir = new File(folderPath, driverName);
+
+        // Check in the parent folder
+        File parentDir = new File(new File(folderPath).getParent(), driverName);
+
+        if (currentDir.exists()) {
+            System.out.println(driverName + " found in " + folderPath);
+        } else if (parentDir.exists()) {
+            System.out.println(driverName + " found in the parent folder: " + parentDir.getParent());
+        } else {
+            System.out.println(driverName + " not found.");
+        }
+    }
+}
