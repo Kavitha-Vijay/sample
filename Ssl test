@@ -59,4 +59,25 @@ class ArtifactoryServiceTest {
         // Simulate HTTP NOT FOUND response
         when(mockHttpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_NOT_FOUND);
 
-        // Call the meth
+        // Call the method
+        boolean result = artifactoryService.validateArtifactoryLocation("http://mock-url.com");
+
+        // Verify interactions
+        verify(sslHelper, times(1)).disableSSLValidation();
+        verify(mockHttpConnection, times(1)).setRequestMethod("GET");
+
+        assertFalse(result, "Validation should return false for HTTP 404");
+    }
+
+    @Test
+    void testValidateArtifactoryLocation_ExceptionHandling() throws Exception {
+        // Simulate an exception when opening the connection
+        when(new URL(anyString())).thenThrow(new RuntimeException("Invalid URL"));
+
+        // Call the method
+        boolean result = artifactoryService.validateArtifactoryLocation("invalid-url");
+
+        // Ensure method handles exception gracefully
+        assertFalse(result, "Validation should return false when an exception occurs");
+    }
+}
