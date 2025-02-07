@@ -10,43 +10,33 @@ import java.net.URL;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-class ArtifactoryServiceTest {
+class FileManagerUtilityTests {
 
     @Mock
-    private SSLHelper sslHelper;  // Correctly mock SSLHelper
-
-    @Mock
-    private Config config;  // Mock Config to provide API key
+    private SSLHelper sslHelper;  // ✅ Mock SSLHelper correctly
 
     @InjectMocks
-    private ArtifactoryService artifactoryService; // Ensure mocks are injected into ArtifactoryService
+    private FileManagerUtility fileManagerUtility;  // ✅ Inject Mocks into FileManagerUtility
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this); // ✅ Important: Initializes all @Mock annotated fields
+        MockitoAnnotations.openMocks(this);  // ✅ Required for proper mock injection
     }
 
     @Test
     void testValidateArtifactoryLocation_Success() throws Exception {
-        // Mock URL and HttpURLConnection
+        // ✅ Ensure that when() is called on a mock
+        doNothing().when(sslHelper).disableSSLValidation(); // ✅ Fix: Use doNothing() for void methods
+
         HttpURLConnection mockHttpConnection = mock(HttpURLConnection.class);
+        when(mockHttpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_OK);
+
         URL mockUrl = mock(URL.class);
         when(mockUrl.openConnection()).thenReturn(mockHttpConnection);
 
-        // Simulate HTTP OK response
-        when(mockHttpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_OK);
+        boolean result = fileManagerUtility.validateArtifactoryLocation("http://mock-url.com");
 
-        // Mock API key
-        when(config.API_KEY).thenReturn("dummy-api-key");
-
-        // Call the method
-        boolean result = artifactoryService.validateArtifactoryLocation("http://mock-url.com");
-
-        // Verify interactions and assertions
-        verify(sslHelper, times(1)).disableSSLValidation(); // Ensure SSL is disabled
-        verify(mockHttpConnection, times(1)).setRequestMethod("GET");
-        verify(mockHttpConnection, times(1)).setRequestProperty("X-API-KEY", "dummy-api-key");
-
+        verify(sslHelper, times(1)).disableSSLValidation();  // ✅ Ensure SSL validation is disabled
         assertTrue(result, "Validation should return true for HTTP 200");
     }
 }
