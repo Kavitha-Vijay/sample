@@ -1,0 +1,61 @@
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+public class FileDownloader {
+    private final SSLHelper sslHelper;
+    private final Config config;
+
+    public FileDownloader(SSLHelper sslHelper, Config config) {
+        this.sslHelper = sslHelper;
+        this.config = config;
+    }
+
+    public String downloadFile(String fileURL, String saveDir) throws IOException {
+        sslHelper.disableSSLValidation();  // ✅ Mock this in test
+
+        URL url = new URL(fileURL);
+        HttpURLConnection httpConnection = (HttpURLConnection) url.openConnection();
+        httpConnection.setRequestMethod("GET");
+
+        // ✅ Mock API Key retrieval
+        httpConnection.setRequestProperty("X-API-KEY", config.API_KEY);
+
+        int responseCode = httpConnection.getResponseCode();
+
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            String fileName = "";
+            String disposition = httpConnection.getHeaderField("Content-Disposition");
+
+            if (disposition != null && disposition.contains("filename=")) {
+                fileName = disposition.split("filename=")[1].replace("\"", "").trim();
+                fileName = fileName.split(";")[0];
+            } else {
+                fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1);
+            }
+
+            // ✅ Ensure the directory exists
+            File saveDirectory = new File(saveDir);
+            if (!saveDirectory.exists()) saveDirectory.mkdirs();
+
+            // ✅ Construct full file path
+            String filePath = saveDir + File.separator + fileName;
+
+            // ✅ Use try-with-resources for safe IO operations
+            try (InputStream inputStream = httpConnection.getInputStream();
+                 FileOutputStream outputStream = new FileOutputStream(filePath)) {
+
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+            }
+
+            httpConnection.disconnect();
+            return filePath;
+        } else {
+            throw new IOException("Failed to download file: HTTP response code " + responseCode);
+        }
+    }
+}
