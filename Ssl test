@@ -13,30 +13,38 @@ import static org.mockito.Mockito.*;
 class FileManagerUtilityTests {
 
     @Mock
-    private SSLHelper sslHelper;  // ✅ Mock SSLHelper correctly
+    private SSLHelper sslHelper;
+
+    @Mock
+    private HttpURLConnection mockHttpConnection;  // ✅ Ensure correct mocking
+
+    @Mock
+    private URL mockUrl;  // ✅ Mock URL correctly
 
     @InjectMocks
-    private FileManagerUtility fileManagerUtility;  // ✅ Inject Mocks into FileManagerUtility
+    private FileManagerUtility fileManagerUtility;
 
     @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);  // ✅ Required for proper mock injection
+    void setUp() throws Exception {
+        MockitoAnnotations.openMocks(this);
+
+        // ✅ Ensure `openConnection()` returns our mocked HttpURLConnection
+        when(mockUrl.openConnection()).thenReturn(mockHttpConnection);
     }
 
     @Test
     void testValidateArtifactoryLocation_Success() throws Exception {
-        // ✅ Ensure that when() is called on a mock
-        doNothing().when(sslHelper).disableSSLValidation(); // ✅ Fix: Use doNothing() for void methods
-
-        HttpURLConnection mockHttpConnection = mock(HttpURLConnection.class);
+        doNothing().when(sslHelper).disableSSLValidation();
         when(mockHttpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_OK);
-
-        URL mockUrl = mock(URL.class);
-        when(mockUrl.openConnection()).thenReturn(mockHttpConnection);
 
         boolean result = fileManagerUtility.validateArtifactoryLocation("http://mock-url.com");
 
-        verify(sslHelper, times(1)).disableSSLValidation();  // ✅ Ensure SSL validation is disabled
-        assertTrue(result, "Validation should return true for HTTP 200");
+        System.out.println("Test Mocked Response Code: " + mockHttpConnection.getResponseCode());
+        System.out.println("Test Result: " + result);
+
+        verify(sslHelper, times(1)).disableSSLValidation();
+        verify(mockHttpConnection, times(1)).setRequestMethod("GET");
+
+        assertTrue(result, "Expected validation to return true for HTTP 200");
     }
 }
