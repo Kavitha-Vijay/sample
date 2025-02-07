@@ -48,3 +48,74 @@ class FileManagerUtilityTests {
         assertTrue(result, "Expected validation to return true for HTTP 200");
     }
 }
+
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.net.URL;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class FileManagerUtilityTests {
+
+    @Mock
+    private FileManagerUtility fileManagerUtility;  // ✅ Mock FileManagerUtility
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);  // ✅ Initialize mocks
+    }
+
+    @Test
+    void testConstructURL_SuccessOnFirstTry() throws Exception {
+        String baseUrl = "http://example.com/";
+        String version = "1.0.5";
+        String zipFileName = "/file.zip";
+
+        // ✅ Simulate successful validation on first attempt
+        when(fileManagerUtility.validateArtifactoryLocation(any(URL.class))).thenReturn(true);
+
+        String result = fileManagerUtility.constructURL(baseUrl, version, zipFileName);
+
+        assertEquals(baseUrl + version + zipFileName, result, "URL should be valid on first attempt");
+        verify(fileManagerUtility, times(1)).validateArtifactoryLocation(any(URL.class));
+    }
+
+    @Test
+    void testConstructURL_RetriesBeforeSuccess() throws Exception {
+        String baseUrl = "http://example.com/";
+        String version = "1.0.5";
+        String zipFileName = "/file.zip";
+
+        // ✅ Simulate failure on first attempt, success on third attempt
+        when(fileManagerUtility.validateArtifactoryLocation(any(URL.class)))
+                .thenReturn(false)  // 1st attempt fails
+                .thenReturn(false)  // 2nd attempt fails
+                .thenReturn(true);  // 3rd attempt succeeds
+
+        String result = fileManagerUtility.constructURL(baseUrl, version, zipFileName);
+
+        assertTrue(result.contains("1.0.3"), "Version should decrement until success");
+        verify(fileManagerUtility, times(3)).validateArtifactoryLocation(any(URL.class));
+    }
+
+    @Test
+    void testConstructURL_MaxRetries() throws Exception {
+        String baseUrl = "http://example.com/";
+        String version = "1.0.5";
+        String zipFileName = "/file.zip";
+
+        // ✅ Simulate all attempts failing
+        when(fileManagerUtility.validateArtifactoryLocation(any(URL.class))).thenReturn(false);
+
+        String result = fileManagerUtility.constructURL(baseUrl, version, zipFileName);
+
+        assertFalse(result.isEmpty(), "URL should still be returned after max retries");
+        verify(fileManagerUtility, times(51)).validateArtifactoryLocation(any(URL.class));  // ✅ 50 retries + 1 initial
+    }
+}
