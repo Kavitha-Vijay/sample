@@ -1,39 +1,62 @@
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import javax.net.ssl.*;
-import java.security.cert.X509Certificate;
-import static org.junit.jupiter.api.Assertions.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-class SSLHelperTest {
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class ArtifactoryServiceTest {
+
+    @Mock
+    private SSLHelper sslHelper;  // Mock SSLHelper
+
+    @Mock
+    private HttpURLConnection mockHttpConnection;  // Mock HttpURLConnection
+
+    @Mock
+    private Config config;  // Mock Config (API key)
+
+    @InjectMocks
+    private ArtifactoryService artifactoryService; // Inject mocks into ArtifactoryService
+
+    @BeforeEach
+    void setUp() throws Exception {
+        MockitoAnnotations.openMocks(this);  // Initialize mocks
+        when(config.API_KEY).thenReturn("dummy-api-key");  // Mock API key
+    }
 
     @Test
-    void testDisableSSLValidation() throws Exception {
-        // Call the method to disable SSL validation
-        SSLHelper sslHelper = new SSLHelper();
-        sslHelper.disableSSLValidation();
+    void testValidateArtifactoryLocation_Success() throws Exception {
+        // Mock URL and HttpURLConnection
+        URL mockUrl = mock(URL.class);
+        when(mockUrl.openConnection()).thenReturn(mockHttpConnection);
 
-        // Verify that HttpsURLConnection's default SSLSocketFactory has been set
-        SSLSocketFactory defaultSSLSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
-        assertNotNull(defaultSSLSocketFactory, "SSLSocketFactory should not be null");
+        // Simulate HTTP OK response
+        when(mockHttpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_OK);
 
-        // Verify that HttpsURLConnection's default HostnameVerifier allows all hostnames
-        HostnameVerifier hostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier();
-        assertTrue(hostnameVerifier.verify("anyhost", null), "HostnameVerifier should accept any hostname");
+        // Call the method
+        boolean result = artifactoryService.validateArtifactoryLocation("http://mock-url.com");
 
-        // Verify that the custom TrustManager allows all certificates
-        SSLContext sc = SSLContext.getInstance("TLS");
-        sc.init(null, new TrustManager[]{new X509TrustManager() {
-            @Override
-            public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+        // Verify interactions and assertions
+        verify(sslHelper, times(1)).disableSSLValidation(); // Ensure SSL validation is disabled
+        verify(mockHttpConnection, times(1)).setRequestMethod("GET");
+        verify(mockHttpConnection, times(1)).setRequestProperty("X-API-KEY", "dummy-api-key");
 
-            @Override
-            public void checkServerTrusted(X509Certificate[] certs, String authType) {}
-
-            @Override
-            public X509Certificate[] getAcceptedIssuers() {
-                return new X509Certificate[0];
-            }
-        }}, new java.security.SecureRandom());
-
-        assertNotNull(sc.getSocketFactory(), "SSLContext's SocketFactory should not be null");
+        assertTrue(result, "Validation should return true for HTTP 200");
     }
-}
+
+    @Test
+    void testValidateArtifactoryLocation_Failure() throws Exception {
+        // Mock URL and HttpURLConnection
+        URL mockUrl = mock(URL.class);
+        when(mockUrl.openConnection()).thenReturn(mockHttpConnection);
+
+        // Simulate HTTP NOT FOUND response
+        when(mockHttpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_NOT_FOUND);
+
+        // Call the meth
