@@ -1,8 +1,8 @@
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockedStatic;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -14,22 +14,21 @@ import static org.mockito.Mockito.*;
 class FileDownloaderTest {
 
     @Mock
-    private SSLHelper sslHelper;  // ✅ Mock SSLHelper
+    private SSLHelper sslHelper;
 
     @Mock
-    private Config config;  // ✅ Mock Config
+    private Config config;
 
     @Mock
-    private HttpURLConnection mockHttpConnection;  // ✅ Mock HttpURLConnection
+    private HttpURLConnection mockHttpConnection;
 
     @Mock
-    private URL mockUrl;  // ✅ Mock URL
+    private URL mockUrl;
 
     @Mock
-    private InputStream mockInputStream;  // ✅ Mock InputStream
+    private InputStream mockInputStream;
 
-    @InjectMocks
-    private FileDownloader fileDownloader;  // ✅ Inject Mocks
+    private FileDownloader fileDownloader;  
 
     private final String fileURL = "http://example.com/testfile.zip";
     private final String saveDir = "/downloads/";
@@ -37,22 +36,24 @@ class FileDownloaderTest {
     @BeforeEach
     void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
-        when(mockUrl.openConnection()).thenReturn(mockHttpConnection);  // ✅ Ensure URL returns HttpURLConnection
-        when(config.API_KEY).thenReturn("dummy-api-key");  // ✅ Mock API Key
+
+        // ✅ Use a real instance but allow method stubbing
+        fileDownloader = spy(new FileDownloader(sslHelper, config));
+
+        when(mockUrl.openConnection()).thenReturn(mockHttpConnection);
+        when(config.API_KEY).thenReturn("dummy-api-key");
     }
 
     @Test
     void testDownloadFile_Success() throws Exception {
-        // ✅ Simulate HTTP 200 response
+        doNothing().when(sslHelper).disableSSLValidation();
         when(mockHttpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_OK);
         when(mockHttpConnection.getHeaderField("Content-Disposition")).thenReturn("attachment; filename=\"testfile.zip\"");
-
-        // ✅ Simulate InputStream with file content
         when(mockHttpConnection.getInputStream()).thenReturn(new ByteArrayInputStream("Test file data".getBytes()));
 
-        // ✅ Mock FileOutputStream to avoid actual file writes
+        // ✅ Fix constructor mocking issue by specifying exact path
         try (MockedStatic<FileOutputStream> mockedFileOutputStream = mockStatic(FileOutputStream.class)) {
-            mockedFileOutputStream.when(() -> new FileOutputStream(any(String.class))).thenReturn(mock(FileOutputStream.class));
+            mockedFileOutputStream.when(() -> new FileOutputStream("/downloads/testfile.zip")).thenReturn(mock(FileOutputStream.class));
 
             // ✅ Call method
             String downloadedFilePath = fileDownloader.downloadFile(fileURL, saveDir);
@@ -63,10 +64,8 @@ class FileDownloaderTest {
 
     @Test
     void testDownloadFile_HttpError() throws Exception {
-        // ✅ Simulate HTTP 404 response
         when(mockHttpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_NOT_FOUND);
 
-        // ✅ Call method & expect IOException
         IOException thrown = assertThrows(IOException.class, () -> fileDownloader.downloadFile(fileURL, saveDir));
         assertTrue(thrown.getMessage().contains("Failed to download file: HTTP response code 404"));
     }
