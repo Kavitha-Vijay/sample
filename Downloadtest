@@ -1,0 +1,73 @@
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class FileDownloaderTest {
+
+    @Mock
+    private SSLHelper sslHelper;  // ✅ Mock SSLHelper
+
+    @Mock
+    private Config config;  // ✅ Mock Config
+
+    @Mock
+    private HttpURLConnection mockHttpConnection;  // ✅ Mock HttpURLConnection
+
+    @Mock
+    private URL mockUrl;  // ✅ Mock URL
+
+    @Mock
+    private InputStream mockInputStream;  // ✅ Mock InputStream
+
+    @InjectMocks
+    private FileDownloader fileDownloader;  // ✅ Inject Mocks
+
+    private final String fileURL = "http://example.com/testfile.zip";
+    private final String saveDir = "/downloads/";
+
+    @BeforeEach
+    void setUp() throws Exception {
+        MockitoAnnotations.openMocks(this);
+        when(mockUrl.openConnection()).thenReturn(mockHttpConnection);  // ✅ Ensure URL returns HttpURLConnection
+        when(config.API_KEY).thenReturn("dummy-api-key");  // ✅ Mock API Key
+    }
+
+    @Test
+    void testDownloadFile_Success() throws Exception {
+        // ✅ Simulate HTTP 200 response
+        when(mockHttpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_OK);
+        when(mockHttpConnection.getHeaderField("Content-Disposition")).thenReturn("attachment; filename=\"testfile.zip\"");
+
+        // ✅ Simulate InputStream with file content
+        when(mockHttpConnection.getInputStream()).thenReturn(new ByteArrayInputStream("Test file data".getBytes()));
+
+        // ✅ Mock FileOutputStream to avoid actual file writes
+        try (MockedStatic<FileOutputStream> mockedFileOutputStream = mockStatic(FileOutputStream.class)) {
+            mockedFileOutputStream.when(() -> new FileOutputStream(any(String.class))).thenReturn(mock(FileOutputStream.class));
+
+            // ✅ Call method
+            String downloadedFilePath = fileDownloader.downloadFile(fileURL, saveDir);
+
+            assertEquals(saveDir + "testfile.zip", downloadedFilePath, "File should be saved with correct name");
+        }
+    }
+
+    @Test
+    void testDownloadFile_HttpError() throws Exception {
+        // ✅ Simulate HTTP 404 response
+        when(mockHttpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_NOT_FOUND);
+
+        // ✅ Call method & expect IOException
+        IOException thrown = assertThrows(IOException.class, () -> fileDownloader.downloadFile(fileURL, saveDir));
+        assertTrue(thrown.getMessage().contains("Failed to download file: HTTP response code 404"));
+    }
+}
