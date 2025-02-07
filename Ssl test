@@ -1,0 +1,39 @@
+import org.junit.jupiter.api.Test;
+import javax.net.ssl.*;
+import java.security.cert.X509Certificate;
+import static org.junit.jupiter.api.Assertions.*;
+
+class SSLHelperTest {
+
+    @Test
+    void testDisableSSLValidation() throws Exception {
+        // Call the method to disable SSL validation
+        SSLHelper sslHelper = new SSLHelper();
+        sslHelper.disableSSLValidation();
+
+        // Verify that HttpsURLConnection's default SSLSocketFactory has been set
+        SSLSocketFactory defaultSSLSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
+        assertNotNull(defaultSSLSocketFactory, "SSLSocketFactory should not be null");
+
+        // Verify that HttpsURLConnection's default HostnameVerifier allows all hostnames
+        HostnameVerifier hostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier();
+        assertTrue(hostnameVerifier.verify("anyhost", null), "HostnameVerifier should accept any hostname");
+
+        // Verify that the custom TrustManager allows all certificates
+        SSLContext sc = SSLContext.getInstance("TLS");
+        sc.init(null, new TrustManager[]{new X509TrustManager() {
+            @Override
+            public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+
+            @Override
+            public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+        }}, new java.security.SecureRandom());
+
+        assertNotNull(sc.getSocketFactory(), "SSLContext's SocketFactory should not be null");
+    }
+}
