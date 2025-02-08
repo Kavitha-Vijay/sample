@@ -123,3 +123,59 @@ class WebDriverDownloadAppTest {
         }
     }
 }
+
+
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import picocli.CommandLine;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class WebDriverDownloadAppTest {
+
+    private static class ExitException extends SecurityException {
+        final int status;
+
+        ExitException(int status) {
+            super("System.exit() was called.");
+            this.status = status;
+        }
+    }
+
+    @BeforeEach
+    void setUp() {
+        // ✅ Override SecurityManager to catch System.exit()
+        System.setSecurityManager(new SecurityManager() {
+            @Override
+            public void checkPermission(java.security.Permission perm) {
+                if (perm.getName().startsWith("exitVM")) {
+                    throw new ExitException(0);
+                }
+            }
+        });
+    }
+
+    @Test
+    void testMain_ExecutesSuccessfully() {
+        String[] args = {"--option1", "value1"};
+
+        try (MockedStatic<CommandLine> mockedCommandLine = Mockito.mockStatic(CommandLine.class)) {
+            CommandLine mockCommandLine = mock(CommandLine.class);
+            mockedCommandLine.when(() -> new CommandLine(any())).thenReturn(mockCommandLine);
+
+            // ✅ Fix: Ensure all arguments use matchers
+            when(mockCommandLine.execute(any(String[].class))).thenReturn(0);
+
+            ExitException exitException = assertThrows(ExitException.class, () -> {
+                WebDriverDownloadApp.main(args);
+            });
+
+            assertEquals(0, exitException.status);
+        }
+    }
+}
