@@ -38,3 +38,83 @@ public class WebDriverDownloadConfig {
     public String getEdgeArtifactory() { return EDGE_ARTIFACTORY; }
     public String getApiKey() { return API_KEY; }
 }
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class WebDriverDownloadConfigTest {
+    private WebDriverDownloadConfig config;
+
+    @BeforeEach
+    void setUp() {
+        config = new WebDriverDownloadConfig();
+    }
+
+    @Test
+    void testInitialize_Success() {
+        String apiKey = "test-api-key";
+        String propertiesContent = "artifactory.url=http://example.com\n" +
+                                   "chrome.artifactory=/chrome/path\n" +
+                                   "edge.artifactory=/edge/path";
+
+        InputStream mockInputStream = new ByteArrayInputStream(propertiesContent.getBytes());
+
+        try (MockedStatic<WebDriverDownloadConfig> mockedClass = Mockito.mockStatic(WebDriverDownloadConfig.class)) {
+            mockedClass.when(() -> WebDriverDownloadConfig.class.getClassLoader().getResourceAsStream("application.properties"))
+                       .thenReturn(mockInputStream);
+
+            config.initialize(apiKey);
+
+            assertEquals("http://example.com", config.getBaseArtifactoryUrl());
+            assertEquals("/chrome/path", config.getChromeArtifactory());
+            assertEquals("/edge/path", config.getEdgeArtifactory());
+            assertEquals(apiKey, config.getApiKey());
+        }
+    }
+
+    @Test
+    void testInitialize_FileNotFound() {
+        String apiKey = "test-api-key";
+
+        try (MockedStatic<WebDriverDownloadConfig> mockedClass = Mockito.mockStatic(WebDriverDownloadConfig.class)) {
+            mockedClass.when(() -> WebDriverDownloadConfig.class.getClassLoader().getResourceAsStream("application.properties"))
+                       .thenReturn(null);  // ✅ Simulate file not found
+
+            config.initialize(apiKey);
+
+            assertNull(config.getBaseArtifactoryUrl());
+            assertNull(config.getChromeArtifactory());
+            assertNull(config.getEdgeArtifactory());
+            assertEquals(apiKey, config.getApiKey());  // API Key should still be set
+        }
+    }
+
+    @Test
+    void testInitialize_IOException() throws IOException {
+        String apiKey = "test-api-key";
+        InputStream mockInputStream = mock(InputStream.class);
+        
+        when(mockInputStream.read(any(byte[].class))).thenThrow(new IOException("Test IOException"));
+
+        try (MockedStatic<WebDriverDownloadConfig> mockedClass = Mockito.mockStatic(WebDriverDownloadConfig.class)) {
+            mockedClass.when(() -> WebDriverDownloadConfig.class.getClassLoader().getResourceAsStream("application.properties"))
+                       .thenReturn(mockInputStream);  // ✅ Simulate IOException
+
+            config.initialize(apiKey);
+
+            assertNull(config.getBaseArtifactoryUrl());
+            assertNull(config.getChromeArtifactory());
+            assertNull(config.getEdgeArtifactory());
+            assertEquals(apiKey, config.getApiKey());  // API Key should still be set
+        }
+    }
+}
