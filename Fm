@@ -181,3 +181,50 @@ class DriverManagerTest {
         }
     }
 }
+
+
+
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+class DriverUtilsTest {
+
+    private DriverUtils driverUtils;
+
+    @BeforeEach
+    void setUp() {
+        driverUtils = new DriverUtils();  // ✅ Create a real instance
+    }
+
+    @Test
+    void testGetDriverName_Chrome() {
+        String result = driverUtils.getDriverName("chrome");
+        assertEquals("chromedriver.exe", result);
+    }
+
+    @Test
+    void testGetDriverName_Edge() {
+        String result = driverUtils.getDriverName("edge");
+        assertEquals("msedgedriver.exe", result);
+    }
+
+    @Test
+    void testGetDriverName_UnsupportedBrowser() {
+        String result = driverUtils.getDriverName("firefox");
+        assertEquals("Invalid browser/Not supported", result);
+    }
+
+    @Test
+    void testGetDriverName_NullInput() {
+        String result = driverUtils.getDriverName(null);
+        assertEquals("Invalid browser/Not supported", result);
+    }
+
+    @Test
+    void testGetDriverName_CaseInsensitive() {
+        assertEquals("chromedriver.exe", driverUtils.getDriverName("ChRoMe"));
+        assertEquals("msedgedriver.exe", driverUtils.getDriverName("EDGE"));
+    }
+}
