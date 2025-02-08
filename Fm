@@ -228,3 +228,97 @@ class DriverUtilsTest {
         assertEquals("msedgedriver.exe", driverUtils.getDriverName("EDGE"));
     }
 }
+
+
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class CommandExecutorTest {
+
+    private CommandExecutor commandExecutor;
+
+    @Mock
+    private Process process;  // ✅ Mocked Process object
+
+    @Mock
+    private InputStream inputStream;  // ✅ Mocked InputStream
+
+    @Mock
+    private InputStreamReader inputStreamReader;  // ✅ Mocked InputStreamReader
+
+    @Mock
+    private BufferedReader bufferedReader;  // ✅ Mocked BufferedReader
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        commandExecutor = new CommandExecutor();
+    }
+
+    @Test
+    void testExecuteCommandAndExtractVersion_Success() throws Exception {
+        String command = "java -version";
+        String expectedVersion = "11.0.12";
+
+        // ✅ Mock `Runtime.getRuntime().exec(command)`
+        try (var mockedRuntime = mockStatic(Runtime.class)) {
+            Runtime runtime = mock(Runtime.class);
+            mockedRuntime.when(Runtime::getRuntime).thenReturn(runtime);
+            when(runtime.exec(command)).thenReturn(process);
+
+            // ✅ Mock `process.getInputStream()`
+            when(process.getInputStream()).thenReturn(inputStream);
+            when(inputStreamReader.read()).thenReturn(-1);  // Simulate end of stream
+
+            // ✅ Mock `bufferedReader.readLine()`
+            when(bufferedReader.readLine()).thenReturn("java version \"11.0.12\"", null);
+
+            // ✅ Call the method
+            String result = commandExecutor.executeCommandAndExtractVersion(command);
+
+            assertEquals(expectedVersion, result);
+        }
+    }
+
+    @Test
+    void testExecuteCommandAndExtractVersion_NoVersionFound() throws Exception {
+        String command = "some-command";
+
+        try (var mockedRuntime = mockStatic(Runtime.class)) {
+            Runtime runtime = mock(Runtime.class);
+            mockedRuntime.when(Runtime::getRuntime).thenReturn(runtime);
+            when(runtime.exec(command)).thenReturn(process);
+
+            when(process.getInputStream()).thenReturn(inputStream);
+            when(bufferedReader.readLine()).thenReturn("some output", null);
+
+            String result = commandExecutor.executeCommandAndExtractVersion(command);
+
+            assertNull(result);
+        }
+    }
+
+    @Test
+    void testExecuteCommandAndExtractVersion_ThrowsException() throws Exception {
+        String command = "invalid-command";
+
+        try (var mockedRuntime = mockStatic(Runtime.class)) {
+            Runtime runtime = mock(Runtime.class);
+            mockedRuntime.when(Runtime::getRuntime).thenReturn(runtime);
+            when(runtime.exec(command)).thenThrow(new RuntimeException("Command execution failed"));
+
+            assertThrows(RuntimeException.class, () -> commandExecutor.executeCommandAndExtractVersion(command));
+        }
+    }
+}
