@@ -59,3 +59,212 @@ public class FileDownloader {
         }
     }
 }
+
+
+
+
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+public class FileDownloader {
+    private final SSLHelper sslHelper;
+    private final Config config;
+    private final URLFactory urlFactory;
+
+    public FileDownloader(SSLHelper sslHelper, Config config, URLFactory urlFactory) {
+        this.sslHelper = sslHelper;
+        this.config = config;
+        this.urlFactory = urlFactory;
+    }
+
+    public String downloadFile(String fileURL, String saveDir) throws IOException {
+        sslHelper.disableSSLValidation();  // ✅ Mock this in the test
+
+        URL url = urlFactory.createURL(fileURL);  // Use URLFactory to create URL
+        HttpURLConnection httpConnection = (HttpURLConnection) url.openConnection();
+        httpConnection.setRequestMethod("GET");
+
+        httpConnection.setRequestProperty("X-API-KEY", config.API_KEY);
+
+        int responseCode = httpConnection.getResponseCode();
+
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            String fileName;
+            String disposition = httpConnection.getHeaderField("Content-Disposition");
+
+            if (disposition != null && disposition.contains("filename=")) {
+                fileName = disposition.split("filename=")[1].replace("\"", "").trim();
+                fileName = fileName.split(";")[0];
+            } else {
+                fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1);
+            }
+
+            File saveDirectory = new File(saveDir);
+            if (!saveDirectory.exists()) saveDirectory.mkdirs();
+
+            String filePath = saveDir + File.separator + fileName;
+
+            try (InputStream inputStream = httpConnection.getInputStream();
+                 FileOutputStream outputStream = new FileOutputStream(filePath)) {
+
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+            }
+
+            httpConnection.disconnect();
+            return filePath;
+        } else {
+            throw new IOException("Failed to download file: HTTP response code " + responseCode);
+        }
+    }
+}
+
+// URLFactory interface to create URL objects
+interface URLFactory {
+    URL createURL(String url) throws IOException;
+}
+
+// Default implementation of URLFactory
+class DefaultURLFactory implements URLFactory {
+    @Override
+    public URL createURL(String url) throws IOException {
+        return new URL(url);
+    }
+}
+
+
+
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+public class FileDownloaderTest {
+
+    @Mock
+    private SSLHelper sslHelper;
+
+    @Mock
+    private Config config;
+
+    @Mock
+    private URLFactory urlFactory;
+
+    @Mock
+    private HttpURLConnection httpConnection;
+
+    private FileDownloader fileDownloader;
+
+    @Before
+    public void setUp() throws Exception {
+        MockitoAnnotations.openMocks(this); // Initialize mocks
+        fileDownloader = new FileDownloader(sslHelper, config, urlFactory);
+
+        // Mock URLFactory to return a mocked URL
+        URL url = mock(URL.class);
+        when(urlFactory.createURL(any(String.class))).thenReturn(url);
+
+        // Mock URL.openConnection() to return the mocked HttpURLConnection
+        when(url.openConnection()).thenReturn(httpConnection);
+    }
+
+    @Test
+    public void testDownloadFile_Success() throws Exception {
+        // Mock HTTP response
+        when(httpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_OK);
+        when(httpConnection.getInputStream()).thenReturn(new ByteArrayInputStream("file content".getBytes()));
+
+        // Mock API key
+        when(config.API_KEY).thenReturn("test-api-key");
+
+        // Call the method
+        String saveDir = "test-dir";
+        String fileURL = "http://example.com/file";
+        String filePath = fileDownloader.downloadFile(fileURL, saveDir);
+
+        // Verify the file was saved
+        File file = new File(filePath);
+        assertTrue(file.exists());
+        assertEquals("file", file.getName()); // Default filename from URL
+
+        // Verify SSL validation was disabled
+        verify(sslHelper).disableSSLValidation();
+
+        // Verify API key was set
+        verify(httpConnection).setRequestProperty("X-API-KEY", "test-api-key");
+
+        // Clean up
+        file.delete();
+        new File(saveDir).delete();
+    }
+
+    @Test
+    public void testDownloadFile_WithCustomFilename() throws Exception {
+        // Mock HTTP response
+        when(httpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_OK);
+        when(httpConnection.getInputStream()).thenReturn(new ByteArrayInputStream("file content".getBytes()));
+        when(httpConnection.getHeaderField("Content-Disposition")).thenReturn("attachment; filename=\"custom-file.txt\"");
+
+        // Mock API key
+        when(config.API_KEY).thenReturn("test-api-key");
+
+        // Call the method
+        String saveDir = "test-dir";
+        String fileURL = "http://example.com/file";
+        String filePath = fileDownloader.downloadFile(fileURL, saveDir);
+
+        // Verify the file was saved with the custom filename
+        File file = new File(filePath);
+        assertTrue(file.exists());
+        assertEquals("custom-file.txt", file.getName());
+
+        // Clean up
+        file.delete();
+        new File(saveDir).delete();
+    }
+
+    @Test(expected = IOException.class)
+    public void testDownloadFile_Failure() throws Exception {
+        // Mock HTTP response
+        when(httpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_NOT_FOUND);
+
+        // Call the method (should throw IOException)
+        fileDownloader.downloadFile("http://example.com/file", "test-dir");
+    }
+
+    @Test
+    public void testDownloadFile_DirectoryCreation() throws Exception {
+        // Mock HTTP response
+        when(httpConnection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_OK);
+        when(httpConnection.getInputStream()).thenReturn(new ByteArrayInputStream("file content".getBytes()));
+
+        // Call the method
+        String saveDir = "test-dir";
+        String fileURL = "http://example.com/file";
+        String filePath = fileDownloader.downloadFile(fileURL, saveDir);
+
+        // Verify the directory was created
+        File directory = new File(saveDir);
+        assertTrue(directory.exists());
+
+        // Clean up
+        new File(filePath).delete();
+        directory.delete();
+    }
+}
