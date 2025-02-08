@@ -59,3 +59,84 @@ class FileManagerTest {
         verify(fileManager, never()).copyFiles(any(), any());
     }
 }
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.stream.Stream;
+
+import static org.mockito.Mockito.*;
+
+class FileManagerTest {
+
+    private FileManager fileManager;
+    private Path source;
+    private Path destination;
+
+    @BeforeEach
+    void setUp() {
+        fileManager = new FileManager();
+        source = Paths.get("source");
+        destination = Paths.get("destination");
+    }
+
+    @Test
+    void testCopyFiles_Success() throws IOException {
+        // ✅ Simulated file structure
+        Path file1 = source.resolve("file1.txt");
+        Path file2 = source.resolve("subdir/file2.txt");
+        Path dir1 = source.resolve("subdir");
+
+        Stream<Path> mockFileStream = Stream.of(source, dir1, file1, file2);
+
+        // ✅ Mock Files.walk() to return the file structure
+        try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
+            mockedFiles.when(() -> Files.exists(destination)).thenReturn(false);
+            mockedFiles.when(() -> Files.createDirectories(destination)).thenReturn(destination);
+            mockedFiles.when(() -> Files.walk(source)).thenReturn(mockFileStream);
+            mockedFiles.when(() -> Files.isDirectory(dir1)).thenReturn(true);
+            mockedFiles.when(() -> Files.isDirectory(file1)).thenReturn(false);
+            mockedFiles.when(() -> Files.isDirectory(file2)).thenReturn(false);
+            
+            // ✅ Ensure createDirectories() and copy() are executed
+            mockedFiles.when(() -> Files.createDirectories(any(Path.class))).thenReturn(null);
+            mockedFiles.when(() -> Files.copy(any(Path.class), any(Path.class), any(StandardCopyOption.class))).thenReturn(null);
+
+            // ✅ Call method
+            fileManager.copyFiles(source, destination);
+
+            // ✅ Verify that directories and files are created/copied
+            mockedFiles.verify(() -> Files.createDirectories(destination), times(1));
+            mockedFiles.verify(() -> Files.createDirectories(destination.resolve("subdir")), times(1));
+            mockedFiles.verify(() -> Files.copy(file1, destination.resolve("file1.txt"), StandardCopyOption.REPLACE_EXISTING), times(1));
+            mockedFiles.verify(() -> Files.copy(file2, destination.resolve("subdir/file2.txt"), StandardCopyOption.REPLACE_EXISTING), times(1));
+        }
+    }
+
+    @Test
+    void testCopyFiles_IOException() throws IOException {
+        // ✅ Simulated file structure
+        Path file1 = source.resolve("file1.txt");
+
+        Stream<Path> mockFileStream = Stream.of(source, file1);
+
+        // ✅ Mock Files.walk() to return the file structure
+        try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
+            mockedFiles.when(() -> Files.exists(destination)).thenReturn(true);
+            mockedFiles.when(() -> Files.walk(source)).thenReturn(mockFileStream);
+            mockedFiles.when(() -> Files.isDirectory(file1)).thenReturn(false);
+
+            // ✅ Simulate an IOException when copying
+            mockedFiles.when(() -> Files.copy(file1, destination.resolve("file1.txt"), StandardCopyOption.REPLACE_EXISTING))
+                       .thenThrow(new IOException("Simulated file copy error"));
+
+            // ✅ Call method and expect a RuntimeException
+            RuntimeException exception = assertThrows(RuntimeException.class, () -> fileManager.copyFiles(source, destination));
+
+            assertTrue(exception.getMessage().contains("Failed to copy"));
+        }
+    }
+}
