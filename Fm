@@ -322,3 +322,82 @@ class CommandExecutorTest {
         }
     }
 }
+
+
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.*;
+
+public class CommandExecutorTest {
+
+    private final CommandExecutor commandExecutor = new CommandExecutor();
+    private final Process process = mock(Process.class);
+
+    @Test
+    void testExecuteCommandAndExtractVersion_Success() throws Exception {
+        String command = "java -version";
+        String expectedVersion = "11.0.12";
+
+        // ✅ Mock `Runtime.getRuntime().exec(command)`
+        try (MockedStatic<Runtime> mockedRuntime = mockStatic(Runtime.class)) {
+            Runtime runtime = mock(Runtime.class);
+            mockedRuntime.when(Runtime::getRuntime).thenReturn(runtime);
+            when(runtime.exec(command)).thenReturn(process);
+
+            // ✅ Provide simulated output for the process
+            String simulatedOutput = "java version \"11.0.12\"\n";  // ✅ Ensure newline for `readLine()`
+            InputStream inputStream = new ByteArrayInputStream(simulatedOutput.getBytes(StandardCharsets.UTF_8));
+            when(process.getInputStream()).thenReturn(inputStream);
+
+            // ✅ Mock `process.waitFor()`
+            when(process.waitFor()).thenReturn(0);
+
+            // Debug: Print simulated output
+            System.out.println("Simulated Output: " + simulatedOutput);
+
+            // ✅ Call the method
+            String result = commandExecutor.executeCommandAndExtractVersion(command);
+
+            // Debug: Print extracted version
+            System.out.println("Extracted Version: " + result);
+
+            assertEquals(expectedVersion, result);
+        }
+    }
+
+    @Test
+    void testExecuteCommandAndExtractVersion_NoVersionFound() throws Exception {
+        String command = "some-command";
+
+        try (MockedStatic<Runtime> mockedRuntime = mockStatic(Runtime.class)) {
+            Runtime runtime = mock(Runtime.class);
+            mockedRuntime.when(Runtime::getRuntime).thenReturn(runtime);
+            when(runtime.exec(command)).thenReturn(process);
+
+            // ✅ Provide an output that does NOT contain "version"
+            String simulatedOutput = "some output without version\n";
+            InputStream inputStream = new ByteArrayInputStream(simulatedOutput.getBytes(StandardCharsets.UTF_8));
+            when(process.getInputStream()).thenReturn(inputStream);
+
+            when(process.waitFor()).thenReturn(0);
+
+            // Debug: Print simulated output
+            System.out.println("Simulated Output: " + simulatedOutput);
+
+            String result = commandExecutor.executeCommandAndExtractVersion(command);
+
+            // Debug: Print extracted version
+            System.out.println("Extracted Version: " + result);
+
+            assertNull(result);
+        }
+    }
+}
