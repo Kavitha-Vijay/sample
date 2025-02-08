@@ -1,0 +1,53 @@
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import picocli.CommandLine;
+
+import static org.mockito.Mockito.*;
+
+class WebDriverDownloadAppTest {
+
+    @BeforeEach
+    void setUp() {
+        // Reset System.exit before each test to avoid accidental termination
+        try (MockedStatic<System> mockedSystem = mockStatic(System.class)) {
+            mockedSystem.when(() -> System.exit(anyInt())).thenAnswer(invocation -> null);
+        }
+    }
+
+    @Test
+    void testMain_ExecutesSuccessfully() {
+        String[] args = {"--option1", "value1"};  // Sample CLI arguments
+
+        try (MockedStatic<CommandLine> mockedCommandLine = mockStatic(CommandLine.class);
+             MockedStatic<System> mockedSystem = mockStatic(System.class)) {
+
+            CommandLine mockCommandLine = mock(CommandLine.class);
+            mockedCommandLine.when(() -> new CommandLine(any())).thenReturn(mockCommandLine);
+            when(mockCommandLine.execute(args)).thenReturn(0);  // ✅ Simulate successful execution
+
+            WebDriverDownloadApp.main(args);
+
+            verify(mockCommandLine, times(1)).execute(args);
+            mockedSystem.verify(() -> System.exit(0), times(1));  // ✅ Ensure correct exit code
+        }
+    }
+
+    @Test
+    void testMain_ExceptionHandling() {
+        String[] args = {};
+
+        try (MockedStatic<CommandLine> mockedCommandLine = mockStatic(CommandLine.class);
+             MockedStatic<System> mockedSystem = mockStatic(System.class)) {
+
+            CommandLine mockCommandLine = mock(CommandLine.class);
+            mockedCommandLine.when(() -> new CommandLine(any())).thenReturn(mockCommandLine);
+            when(mockCommandLine.execute(args)).thenThrow(new RuntimeException("Command execution failed"));
+
+            WebDriverDownloadApp.main(args);
+
+            mockedSystem.verify(() -> System.exit(anyInt()), times(1));  // ✅ Ensure System.exit() is called
+        }
+    }
+}
