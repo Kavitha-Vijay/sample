@@ -401,3 +401,84 @@ public class CommandExecutorTest {
         }
     }
 }
+
+
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.nio.file.Paths;
+
+import static org.mockito.Mockito.*;
+
+class DriverDownloaderTest {
+
+    private DriverDownloader driverDownloader;
+
+    @Mock
+    private FileManagerUtility fileManagerUtility;
+
+    @Mock
+    private ZipExtractor zipExtractor;
+
+    @Mock
+    private Config config;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        driverDownloader = new DriverDownloader(fileManagerUtility, zipExtractor, config);
+    }
+
+    @Test
+    void testDownloadDriver_Success() throws Exception {
+        String browser = "chrome";
+        String uri = "http://example.com/chromedriver.zip";
+        String driverPath = "/drivers/chrome";
+        String zipFilePath = "/tmp/chromedriver.zip";
+        String extractedFolder = "/tmp/chromedriver-extracted";
+
+        when(config.DOWNLOAD_DIRECTORY).thenReturn("/tmp");
+        when(fileManagerUtility.getDriverPath(browser)).thenReturn(driverPath);
+        when(fileManagerUtility.downloadFile(uri, config.DOWNLOAD_DIRECTORY)).thenReturn(zipFilePath);
+        when(zipExtractor.unzipFile(zipFilePath, config.DOWNLOAD_DIRECTORY)).thenReturn(extractedFolder);
+
+        // Mock folder copy
+        doNothing().when(fileManagerUtility).copyFolder(Paths.get(extractedFolder), Paths.get(driverPath));
+
+        // ✅ Call method
+        driverDownloader.downloadDriver(browser, uri);
+
+        // ✅ Verify interactions
+        verify(fileManagerUtility).getDriverPath(browser);
+        verify(fileManagerUtility).downloadFile(uri, config.DOWNLOAD_DIRECTORY);
+        verify(zipExtractor).unzipFile(zipFilePath, config.DOWNLOAD_DIRECTORY);
+        verify(fileManagerUtility).copyFolder(Paths.get(extractedFolder), Paths.get(driverPath));
+    }
+
+    @Test
+    void testDownloadDriver_ExceptionHandling() throws Exception {
+        String browser = "edge";
+        String uri = "http://example.com/edgedriver.zip";
+
+        when(config.DOWNLOAD_DIRECTORY).thenReturn("/tmp");
+        when(fileManagerUtility.getDriverPath(browser)).thenReturn("/drivers/edge");
+        when(fileManagerUtility.downloadFile(uri, config.DOWNLOAD_DIRECTORY))
+            .thenThrow(new RuntimeException("Download failed"));
+
+        // ✅ Call method (should not throw)
+        driverDownloader.downloadDriver(browser, uri);
+
+        // ✅ Verify `getDriverPath()` was called
+        verify(fileManagerUtility).getDriverPath(browser);
+
+        // ✅ Verify `downloadFile()` was called but failed
+        verify(fileManagerUtility).downloadFile(uri, config.DOWNLOAD_DIRECTORY);
+
+        // ✅ Verify `unzipFile()` and `copyFolder()` were NOT called due to failure
+        verify(zipExtractor, never()).unzipFile(anyString(), anyString());
+        verify(fileManagerUtility, never()).copyFolder(any(), any());
+    }
+}
