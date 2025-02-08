@@ -1,0 +1,40 @@
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+
+public class WebDriverDownloadConfig {
+    private String BASE_ARTIFACTORY_URL;
+    private String CHROME_ARTIFACTORY;
+    private String EDGE_ARTIFACTORY;
+    private String API_KEY;
+
+    public void initialize(String api_key) {
+        Properties properties = new Properties();
+
+        // ✅ Load properties file using ClassLoader
+        try (InputStream input = getClass().getClassLoader().getResourceAsStream("application.properties")) {
+            if (input == null) {
+                System.out.println("Sorry, unable to find application.properties");
+                return;
+            }
+
+            properties.load(input);  // ✅ Load properties file
+
+            // ✅ Read properties
+            BASE_ARTIFACTORY_URL = properties.getProperty("artifactory.url");
+            CHROME_ARTIFACTORY = properties.getProperty("chrome.artifactory");
+            EDGE_ARTIFACTORY = properties.getProperty("edge.artifactory");
+
+            // ✅ Initialize API Key
+            API_KEY = api_key;
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    // ✅ Getter methods for testing
+    public String getBaseArtifactoryUrl() { return BASE_ARTIFACTORY_URL; }
+    public String getChromeArtifactory() { return CHROME_ARTIFACTORY; }
+    public String getEdgeArtifactory() { return EDGE_ARTIFACTORY; }
+    public String getApiKey() { return API_KEY; }
+}
