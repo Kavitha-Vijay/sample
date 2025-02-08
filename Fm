@@ -1,0 +1,61 @@
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import static org.mockito.Mockito.*;
+
+class FileManagerTest {
+
+    private FileManager fileManager;
+
+    @Mock
+    private FileManager mockFileManager;  // ✅ Mock the FileManager instance
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        fileManager = spy(new FileManager());  // ✅ Use a spy to test real method calls
+    }
+
+    @Test
+    void testCopyFolder_Success() throws IOException {
+        Path sourcePath = Paths.get("source");
+        Path destinationPath = Paths.get("destination");
+        String browser = "chrome";
+
+        // ✅ Mock `verifyDriverExists()` to return a valid path
+        doReturn("source").when(fileManager).verifyDriverExists(sourcePath.toString(), browser, destinationPath.toString());
+
+        // ✅ Mock `copyFiles()` to prevent real file operations
+        doNothing().when(fileManager).copyFiles(sourcePath, destinationPath);
+
+        // ✅ Call method
+        fileManager.copyFolder(sourcePath, destinationPath, browser);
+
+        // ✅ Verify that both methods were called correctly
+        verify(fileManager, times(1)).verifyDriverExists(sourcePath.toString(), browser, destinationPath.toString());
+        verify(fileManager, times(1)).copyFiles(sourcePath, destinationPath);
+    }
+
+    @Test
+    void testCopyFolder_IOException() throws IOException {
+        Path sourcePath = Paths.get("source");
+        Path destinationPath = Paths.get("destination");
+        String browser = "chrome";
+
+        // ✅ Simulate `verifyDriverExists()` throwing an IOException
+        doThrow(new IOException("File not found")).when(fileManager).verifyDriverExists(sourcePath.toString(), browser, destinationPath.toString());
+
+        // ✅ Call method (should handle exception internally)
+        fileManager.copyFolder(sourcePath, destinationPath, browser);
+
+        // ✅ Verify `verifyDriverExists()` was called
+        verify(fileManager, times(1)).verifyDriverExists(sourcePath.toString(), browser, destinationPath.toString());
+
+        // ✅ Ensure `copyFiles()` was NOT called
+        verify(fileManager, never()).copyFiles(any(), any());
+    }
+}
