@@ -118,3 +118,95 @@ class WebDriverDownloadConfigTest {
         }
     }
 }
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class WebDriverDownloadConfigTest {
+
+    @BeforeEach
+    void setUp() {
+        // Reset static fields before each test
+        try (MockedStatic<WebDriverDownloadConfig> mockedConfig = mockStatic(WebDriverDownloadConfig.class)) {
+            mockedConfig.when(WebDriverDownloadConfig::getBaseArtifactoryUrl).thenReturn(null);
+            mockedConfig.when(WebDriverDownloadConfig::getChromeArtifactory).thenReturn(null);
+            mockedConfig.when(WebDriverDownloadConfig::getEdgeArtifactory).thenReturn(null);
+            mockedConfig.when(WebDriverDownloadConfig::getApiKey).thenReturn(null);
+        }
+    }
+
+    @Test
+    void testInitialize_Success() {
+        String apiKey = "test-api-key";
+        String propertiesContent = "artifactory.url=http://example.com\n" +
+                                   "chrome.artifactory=/chrome/path\n" +
+                                   "edge.artifactory=/edge/path";
+
+        InputStream mockInputStream = new ByteArrayInputStream(propertiesContent.getBytes());
+
+        try (MockedStatic<WebDriverDownloadConfig> mockedConfig = mockStatic(WebDriverDownloadConfig.class)) {
+            // ✅ Simulate loading the properties file
+            mockedConfig.when(() -> WebDriverDownloadConfig.class.getClassLoader().getResourceAsStream("application.properties"))
+                        .thenReturn(mockInputStream);
+
+            WebDriverDownloadConfig.initialize(apiKey);  // ✅ Call static method
+
+            // ✅ Verify static field values
+            mockedConfig.when(WebDriverDownloadConfig::getBaseArtifactoryUrl).thenReturn("http://example.com");
+            mockedConfig.when(WebDriverDownloadConfig::getChromeArtifactory).thenReturn("/chrome/path");
+            mockedConfig.when(WebDriverDownloadConfig::getEdgeArtifactory).thenReturn("/edge/path");
+            mockedConfig.when(WebDriverDownloadConfig::getApiKey).thenReturn(apiKey);
+
+            assertEquals("http://example.com", WebDriverDownloadConfig.getBaseArtifactoryUrl());
+            assertEquals("/chrome/path", WebDriverDownloadConfig.getChromeArtifactory());
+            assertEquals("/edge/path", WebDriverDownloadConfig.getEdgeArtifactory());
+            assertEquals(apiKey, WebDriverDownloadConfig.getApiKey());
+        }
+    }
+
+    @Test
+    void testInitialize_FileNotFound() {
+        String apiKey = "test-api-key";
+
+        try (MockedStatic<WebDriverDownloadConfig> mockedConfig = mockStatic(WebDriverDownloadConfig.class)) {
+            // ✅ Simulate missing properties file
+            mockedConfig.when(() -> WebDriverDownloadConfig.class.getClassLoader().getResourceAsStream("application.properties"))
+                        .thenReturn(null);
+
+            WebDriverDownloadConfig.initialize(apiKey);
+
+            assertNull(WebDriverDownloadConfig.getBaseArtifactoryUrl());
+            assertNull(WebDriverDownloadConfig.getChromeArtifactory());
+            assertNull(WebDriverDownloadConfig.getEdgeArtifactory());
+            assertEquals(apiKey, WebDriverDownloadConfig.getApiKey());  // API Key should still be set
+        }
+    }
+
+    @Test
+    void testInitialize_IOException() throws IOException {
+        String apiKey = "test-api-key";
+        InputStream mockInputStream = mock(InputStream.class);
+        
+        when(mockInputStream.read(any(byte[].class))).thenThrow(new IOException("Test IOException"));
+
+        try (MockedStatic<WebDriverDownloadConfig> mockedConfig = mockStatic(WebDriverDownloadConfig.class)) {
+            mockedConfig.when(() -> WebDriverDownloadConfig.class.getClassLoader().getResourceAsStream("application.properties"))
+                        .thenReturn(mockInputStream);
+
+            WebDriverDownloadConfig.initialize(apiKey);
+
+            assertNull(WebDriverDownloadConfig.getBaseArtifactoryUrl());
+            assertNull(WebDriverDownloadConfig.getChromeArtifactory());
+            assertNull(WebDriverDownloadConfig.getEdgeArtifactory());
+            assertEquals(apiKey, WebDriverDownloadConfig.getApiKey());  // API Key should still be set
+        }
+    }
+}
