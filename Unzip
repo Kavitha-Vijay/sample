@@ -122,3 +122,85 @@ class FileExtractorTest {
         assertTrue(exception.getMessage().contains("nonexistent.zip"));
     }
 }
+
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.MockedStatic;
+
+import java.io.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class FileExtractorTest {
+
+    private FileExtractor fileExtractor;
+
+    @Mock
+    private ZipInputStream mockZipInputStream;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        fileExtractor = new FileExtractor();
+    }
+
+    @Test
+    void testUnzipFile_Success() throws Exception {
+        String zipFilePath = "test.zip";
+        String destDir = "output";
+
+        // ✅ Simulate ZIP structure: A folder and a file inside it
+        ZipEntry folderEntry = new ZipEntry("testFolder/");
+        ZipEntry fileEntry = new ZipEntry("testFolder/testFile.txt");
+
+        // ✅ Mock `ZipInputStream` to return entries sequentially
+        when(mockZipInputStream.getNextEntry()).thenReturn(folderEntry, fileEntry, null);
+
+        // ✅ Mock file read operation
+        when(mockZipInputStream.read(any(byte[].class), anyInt(), anyInt())).thenReturn(-1);
+
+        // ✅ Mock FileOutputStream to avoid real file creation
+        try (MockedStatic<FileOutputStream> mockedFileOutputStream = mockStatic(FileOutputStream.class)) {
+            mockedFileOutputStream.when(() -> new FileOutputStream("output/testFolder/testFile.txt"))
+                                  .thenReturn(mock(FileOutputStream.class));
+
+            // ✅ Call method
+            String extractedPath = fileExtractor.unzipFile(zipFilePath, destDir);
+
+            assertEquals(new File(destDir, "testFolder").getAbsolutePath(), extractedPath);
+        }
+    }
+
+    @Test
+    void testUnzipFile_EmptyZip() throws Exception {
+        String zipFilePath = "empty.zip";
+        String destDir = "output";
+
+        // ✅ Mock an empty ZIP archive
+        when(mockZipInputStream.getNextEntry()).thenReturn(null);
+
+        Exception exception = assertThrows(IOException.class, () -> {
+            fileExtractor.unzipFile(zipFilePath, destDir);
+        });
+
+        assertTrue(exception.getMessage().contains("Failed to extract"));
+    }
+
+    @Test
+    void testUnzipFile_FileNotFound() {
+        String zipFilePath = "nonexistent.zip";
+        String destDir = "output";
+
+        Exception exception = assertThrows(FileNotFoundException.class, () -> {
+            fileExtractor.unzipFile(zipFilePath, destDir);
+        });
+
+        assertTrue(exception.getMessage().contains("nonexistent.zip"));
+    }
+}
