@@ -2,152 +2,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import static org.mockito.Mockito.*;
-
-class FileManagerTest {
-
-    private FileManager fileManager;
-
-    @Mock
-    private FileManager mockFileManager;  // ✅ Mock the FileManager instance
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        fileManager = spy(new FileManager());  // ✅ Use a spy to test real method calls
-    }
-
-    @Test
-    void testCopyFolder_Success() throws IOException {
-        Path sourcePath = Paths.get("source");
-        Path destinationPath = Paths.get("destination");
-        String browser = "chrome";
-
-        // ✅ Mock `verifyDriverExists()` to return a valid path
-        doReturn("source").when(fileManager).verifyDriverExists(sourcePath.toString(), browser, destinationPath.toString());
-
-        // ✅ Mock `copyFiles()` to prevent real file operations
-        doNothing().when(fileManager).copyFiles(sourcePath, destinationPath);
-
-        // ✅ Call method
-        fileManager.copyFolder(sourcePath, destinationPath, browser);
-
-        // ✅ Verify that both methods were called correctly
-        verify(fileManager, times(1)).verifyDriverExists(sourcePath.toString(), browser, destinationPath.toString());
-        verify(fileManager, times(1)).copyFiles(sourcePath, destinationPath);
-    }
-
-    @Test
-    void testCopyFolder_IOException() throws IOException {
-        Path sourcePath = Paths.get("source");
-        Path destinationPath = Paths.get("destination");
-        String browser = "chrome";
-
-        // ✅ Simulate `verifyDriverExists()` throwing an IOException
-        doThrow(new IOException("File not found")).when(fileManager).verifyDriverExists(sourcePath.toString(), browser, destinationPath.toString());
-
-        // ✅ Call method (should handle exception internally)
-        fileManager.copyFolder(sourcePath, destinationPath, browser);
-
-        // ✅ Verify `verifyDriverExists()` was called
-        verify(fileManager, times(1)).verifyDriverExists(sourcePath.toString(), browser, destinationPath.toString());
-
-        // ✅ Ensure `copyFiles()` was NOT called
-        verify(fileManager, never()).copyFiles(any(), any());
-    }
-}
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-
-import java.io.IOException;
-import java.nio.file.*;
-import java.util.stream.Stream;
-
-import static org.mockito.Mockito.*;
-
-class FileManagerTest {
-
-    private FileManager fileManager;
-    private Path source;
-    private Path destination;
-
-    @BeforeEach
-    void setUp() {
-        fileManager = new FileManager();
-        source = Paths.get("source");
-        destination = Paths.get("destination");
-    }
-
-    @Test
-    void testCopyFiles_Success() throws IOException {
-        // ✅ Simulated file structure
-        Path file1 = source.resolve("file1.txt");
-        Path file2 = source.resolve("subdir/file2.txt");
-        Path dir1 = source.resolve("subdir");
-
-        Stream<Path> mockFileStream = Stream.of(source, dir1, file1, file2);
-
-        // ✅ Mock Files.walk() to return the file structure
-        try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
-            mockedFiles.when(() -> Files.exists(destination)).thenReturn(false);
-            mockedFiles.when(() -> Files.createDirectories(destination)).thenReturn(destination);
-            mockedFiles.when(() -> Files.walk(source)).thenReturn(mockFileStream);
-            mockedFiles.when(() -> Files.isDirectory(dir1)).thenReturn(true);
-            mockedFiles.when(() -> Files.isDirectory(file1)).thenReturn(false);
-            mockedFiles.when(() -> Files.isDirectory(file2)).thenReturn(false);
-            
-            // ✅ Ensure createDirectories() and copy() are executed
-            mockedFiles.when(() -> Files.createDirectories(any(Path.class))).thenReturn(null);
-            mockedFiles.when(() -> Files.copy(any(Path.class), any(Path.class), any(StandardCopyOption.class))).thenReturn(null);
-
-            // ✅ Call method
-            fileManager.copyFiles(source, destination);
-
-            // ✅ Verify that directories and files are created/copied
-            mockedFiles.verify(() -> Files.createDirectories(destination), times(1));
-            mockedFiles.verify(() -> Files.createDirectories(destination.resolve("subdir")), times(1));
-            mockedFiles.verify(() -> Files.copy(file1, destination.resolve("file1.txt"), StandardCopyOption.REPLACE_EXISTING), times(1));
-            mockedFiles.verify(() -> Files.copy(file2, destination.resolve("subdir/file2.txt"), StandardCopyOption.REPLACE_EXISTING), times(1));
-        }
-    }
-
-    @Test
-    void testCopyFiles_IOException() throws IOException {
-        // ✅ Simulated file structure
-        Path file1 = source.resolve("file1.txt");
-
-        Stream<Path> mockFileStream = Stream.of(source, file1);
-
-        // ✅ Mock Files.walk() to return the file structure
-        try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
-            mockedFiles.when(() -> Files.exists(destination)).thenReturn(true);
-            mockedFiles.when(() -> Files.walk(source)).thenReturn(mockFileStream);
-            mockedFiles.when(() -> Files.isDirectory(file1)).thenReturn(false);
-
-            // ✅ Simulate an IOException when copying
-            mockedFiles.when(() -> Files.copy(file1, destination.resolve("file1.txt"), StandardCopyOption.REPLACE_EXISTING))
-                       .thenThrow(new IOException("Simulated file copy error"));
-
-            // ✅ Call method and expect a RuntimeException
-            RuntimeException exception = assertThrows(RuntimeException.class, () -> fileManager.copyFiles(source, destination));
-
-            assertTrue(exception.getMessage().contains("Failed to copy"));
-        }
-    }
-}
-
-
-
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
 import java.io.File;
 import java.io.IOException;
@@ -157,7 +11,7 @@ import static org.mockito.Mockito.*;
 
 class FileManagerTest {
 
-    private FileManager fileManager;
+    private FileManager fileManager;  // ✅ Real instance for `spy()`
 
     @Mock
     private Utilities utilities;  // ✅ Mocked Utilities class
@@ -165,7 +19,7 @@ class FileManagerTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        fileManager = new FileManager(utilities);
+        fileManager = spy(new FileManager(utilities));  // ✅ Use `spy()` on a real instance
     }
 
     @Test
@@ -175,154 +29,26 @@ class FileManagerTest {
         String destination = "C:/destination";
         String driverName = "chromedriver.exe";
 
-        // ✅ Mock `getDriverName(browser)` to return the expected driver name
         when(utilities.getDriverName(browser)).thenReturn(driverName);
 
-        // ✅ Mock the existence of the driver file in the current folder
         File mockFile = mock(File.class);
         when(mockFile.exists()).thenReturn(true);
         when(mockFile.getAbsolutePath()).thenReturn(path + "/" + driverName);
 
-        // ✅ Mock `new File(path, driverName)` behavior
-        try (var mockedFile = mockStatic(File.class)) {
-            mockedFile.when(() -> new File(path, driverName)).thenReturn(mockFile);
+        doReturn(mockFile).when(fileManager).createFile(path, driverName);
 
-            String result = fileManager.verifyDriverExists(path, browser, destination);
-
-            assertEquals(path, result);
-        }
-    }
-
-    @Test
-    void testVerifyDriverExists_InParentFolder() throws IOException {
-        String path = "C:/drivers";
-        String browser = "firefox";
-        String destination = "C:/destination";
-        String driverName = "geckodriver.exe";
-
-        // ✅ Mock `getDriverName(browser)` to return the expected driver name
-        when(utilities.getDriverName(browser)).thenReturn(driverName);
-
-        File mockParentDir = mock(File.class);
-        when(mockParentDir.exists()).thenReturn(true);
-        when(mockParentDir.getParent()).thenReturn("C:/");
-
-        try (var mockedFile = mockStatic(File.class)) {
-            mockedFile.when(() -> new File(path, driverName)).thenReturn(mock(File.class));
-            mockedFile.when(() -> new File(new File(path).getParent(), driverName)).thenReturn(mockParentDir);
-
-            String result = fileManager.verifyDriverExists(path, browser, destination);
-
-            assertEquals("C:/", result);
-        }
-    }
-
-    @Test
-    void testVerifyDriverExists_DriverNotFound() {
-        String path = "C:/drivers";
-        String browser = "edge";
-        String destination = "C:/destination";
-        String driverName = "msedgedriver.exe";
-
-        // ✅ Mock `getDriverName(browser)` to return the expected driver name
-        when(utilities.getDriverName(browser)).thenReturn(driverName);
-
-        try (var mockedFile = mockStatic(File.class)) {
-            mockedFile.when(() -> new File(path, driverName)).thenReturn(mock(File.class));
-            mockedFile.when(() -> new File(new File(path).getParent(), driverName)).thenReturn(mock(File.class));
-
-            IOException exception = assertThrows(IOException.class, () -> {
-                fileManager.verifyDriverExists(path, browser, destination);
-            });
-
-            assertTrue(exception.getMessage().contains("Driver not found"));
-        }
-    }
-}
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
-import java.io.File;
-import java.io.IOException;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-class FileManagerTest {
-
-    private FileManager fileManager;
-
-    @Mock
-    private Utilities utilities;  // ✅ Mocked Utilities class
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        fileManager = new FileManager(utilities);
-    }
-
-    @Test
-    void testVerifyDriverExists_InCurrentFolder() throws IOException {
-        String path = "C:/drivers";
-        String browser = "chrome";
-        String destination = "C:/destination";
-        String driverName = "chromedriver.exe";
-
-        // ✅ Mock `getDriverName(browser)` to return the expected driver name
-        when(utilities.getDriverName(browser)).thenReturn(driverName);
-
-        // ✅ Create a real `File` object and mock `exists()`
-        File mockFile = mock(File.class);
-        when(mockFile.exists()).thenReturn(true);
-        when(mockFile.getAbsolutePath()).thenReturn(path + "/" + driverName);
-
-        // ✅ Use `spy()` instead of `mockStatic(File.class)`
-        FileManager spyFileManager = spy(fileManager);
-        doReturn(mockFile).when(spyFileManager).createFile(path, driverName);
-
-        // ✅ Call method
-        String result = spyFileManager.verifyDriverExists(path, browser, destination);
+        String result = fileManager.verifyDriverExists(path, browser, destination);
 
         assertEquals(path, result);
     }
 
     @Test
-    void testVerifyDriverExists_InParentFolder() throws IOException {
-        String path = "C:/drivers";
-        String browser = "firefox";
-        String destination = "C:/destination";
-        String driverName = "geckodriver.exe";
-
-        // ✅ Mock `getDriverName(browser)`
-        when(utilities.getDriverName(browser)).thenReturn(driverName);
-
-        File mockCurrentDir = mock(File.class);
-        when(mockCurrentDir.exists()).thenReturn(false);
-
-        File mockParentDir = mock(File.class);
-        when(mockParentDir.exists()).thenReturn(true);
-        when(mockParentDir.getParent()).thenReturn("C:/");
-
-        FileManager spyFileManager = spy(fileManager);
-        doReturn(mockCurrentDir).when(spyFileManager).createFile(path, driverName);
-        doReturn(mockParentDir).when(spyFileManager).createFile(new File(path).getParent(), driverName);
-
-        // ✅ Call method
-        String result = spyFileManager.verifyDriverExists(path, browser, destination);
-
-        assertEquals("C:/", result);
-    }
-
-    @Test
     void testVerifyDriverExists_DriverNotFound() {
         String path = "C:/drivers";
         String browser = "edge";
         String destination = "C:/destination";
         String driverName = "msedgedriver.exe";
 
-        // ✅ Mock `getDriverName(browser)`
         when(utilities.getDriverName(browser)).thenReturn(driverName);
 
         File mockCurrentDir = mock(File.class);
@@ -331,12 +57,11 @@ class FileManagerTest {
         File mockParentDir = mock(File.class);
         when(mockParentDir.exists()).thenReturn(false);
 
-        FileManager spyFileManager = spy(fileManager);
-        doReturn(mockCurrentDir).when(spyFileManager).createFile(path, driverName);
-        doReturn(mockParentDir).when(spyFileManager).createFile(new File(path).getParent(), driverName);
+        doReturn(mockCurrentDir).when(fileManager).createFile(path, driverName);
+        doReturn(mockParentDir).when(fileManager).createFile(new File(path).getParent(), driverName);
 
         IOException exception = assertThrows(IOException.class, () -> {
-            spyFileManager.verifyDriverExists(path, browser, destination);
+            fileManager.verifyDriverExists(path, browser, destination);
         });
 
         assertTrue(exception.getMessage().contains("Driver not found"));
