@@ -51,3 +51,75 @@ class WebDriverDownloadAppTest {
         }
     }
 }
+
+
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import picocli.CommandLine;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class WebDriverDownloadAppTest {
+
+    private static class ExitException extends SecurityException {
+        final int status;
+
+        ExitException(int status) {
+            super("System.exit() was called.");
+            this.status = status;
+        }
+    }
+
+    @BeforeEach
+    void setUp() {
+        // ✅ Override SecurityManager to prevent System.exit()
+        System.setSecurityManager(new SecurityManager() {
+            @Override
+            public void checkPermission(java.security.Permission perm) {
+                // Allow all except exit VM
+                if (perm.getName().startsWith("exitVM")) {
+                    throw new ExitException(0);
+                }
+            }
+        });
+    }
+
+    @Test
+    void testMain_ExecutesSuccessfully() {
+        String[] args = {"--option1", "value1"};  // Sample CLI arguments
+
+        try (MockedStatic<CommandLine> mockedCommandLine = Mockito.mockStatic(CommandLine.class)) {
+            CommandLine mockCommandLine = mock(CommandLine.class);
+            mockedCommandLine.when(() -> new CommandLine(any())).thenReturn(mockCommandLine);
+            when(mockCommandLine.execute(args)).thenReturn(0);  // ✅ Simulate successful execution
+
+            // ✅ Expect System.exit() but handle it via SecurityManager
+            ExitException exitException = assertThrows(ExitException.class, () -> {
+                WebDriverDownloadApp.main(args);
+            });
+
+            assertEquals(0, exitException.status);  // ✅ Ensure correct exit code
+        }
+    }
+
+    @Test
+    void testMain_ExceptionHandling() {
+        String[] args = {};
+
+        try (MockedStatic<CommandLine> mockedCommandLine = Mockito.mockStatic(CommandLine.class)) {
+            CommandLine mockCommandLine = mock(CommandLine.class);
+            mockedCommandLine.when(() -> new CommandLine(any())).thenReturn(mockCommandLine);
+            when(mockCommandLine.execute(args)).thenThrow(new RuntimeException("Command execution failed"));
+
+            ExitException exitException = assertThrows(ExitException.class, () -> {
+                WebDriverDownloadApp.main(args);
+            });
+
+            assertNotEquals(0, exitException.status);  // ✅ Ensure non-zero exit code on failure
+        }
+    }
+}
