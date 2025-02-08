@@ -140,3 +140,102 @@ class FileManagerTest {
         }
     }
 }
+
+
+
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.io.File;
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class FileManagerTest {
+
+    private FileManager fileManager;
+
+    @Mock
+    private Utilities utilities;  // ✅ Mocked Utilities class
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        fileManager = new FileManager(utilities);
+    }
+
+    @Test
+    void testVerifyDriverExists_InCurrentFolder() throws IOException {
+        String path = "C:/drivers";
+        String browser = "chrome";
+        String destination = "C:/destination";
+        String driverName = "chromedriver.exe";
+
+        // ✅ Mock `getDriverName(browser)` to return the expected driver name
+        when(utilities.getDriverName(browser)).thenReturn(driverName);
+
+        // ✅ Mock the existence of the driver file in the current folder
+        File mockFile = mock(File.class);
+        when(mockFile.exists()).thenReturn(true);
+        when(mockFile.getAbsolutePath()).thenReturn(path + "/" + driverName);
+
+        // ✅ Mock `new File(path, driverName)` behavior
+        try (var mockedFile = mockStatic(File.class)) {
+            mockedFile.when(() -> new File(path, driverName)).thenReturn(mockFile);
+
+            String result = fileManager.verifyDriverExists(path, browser, destination);
+
+            assertEquals(path, result);
+        }
+    }
+
+    @Test
+    void testVerifyDriverExists_InParentFolder() throws IOException {
+        String path = "C:/drivers";
+        String browser = "firefox";
+        String destination = "C:/destination";
+        String driverName = "geckodriver.exe";
+
+        // ✅ Mock `getDriverName(browser)` to return the expected driver name
+        when(utilities.getDriverName(browser)).thenReturn(driverName);
+
+        File mockParentDir = mock(File.class);
+        when(mockParentDir.exists()).thenReturn(true);
+        when(mockParentDir.getParent()).thenReturn("C:/");
+
+        try (var mockedFile = mockStatic(File.class)) {
+            mockedFile.when(() -> new File(path, driverName)).thenReturn(mock(File.class));
+            mockedFile.when(() -> new File(new File(path).getParent(), driverName)).thenReturn(mockParentDir);
+
+            String result = fileManager.verifyDriverExists(path, browser, destination);
+
+            assertEquals("C:/", result);
+        }
+    }
+
+    @Test
+    void testVerifyDriverExists_DriverNotFound() {
+        String path = "C:/drivers";
+        String browser = "edge";
+        String destination = "C:/destination";
+        String driverName = "msedgedriver.exe";
+
+        // ✅ Mock `getDriverName(browser)` to return the expected driver name
+        when(utilities.getDriverName(browser)).thenReturn(driverName);
+
+        try (var mockedFile = mockStatic(File.class)) {
+            mockedFile.when(() -> new File(path, driverName)).thenReturn(mock(File.class));
+            mockedFile.when(() -> new File(new File(path).getParent(), driverName)).thenReturn(mock(File.class));
+
+            IOException exception = assertThrows(IOException.class, () -> {
+                fileManager.verifyDriverExists(path, browser, destination);
+            });
+
+            assertTrue(exception.getMessage().contains("Driver not found"));
+        }
+    }
+}
