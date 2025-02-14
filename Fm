@@ -1,484 +1,68 @@
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import java.io.File;
-import java.io.IOException;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-class FileManagerTest {
-
-    private FileManager fileManager;  
-
-    @Mock
-    private Utilities utilities;  // ✅ Mocked Utilities class
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        fileManager = new FileManager(utilities);  // ✅ Use a real instance (not mocked)
-    }
-
-    @Test
-    void testVerifyDriverExists_InCurrentFolder() throws IOException {
-        String path = "C:/drivers";
-        String browser = "chrome";
-        String destination = "C:/destination";
-        String driverName = "chromedriver.exe";
-
-        when(utilities.getDriverName(browser)).thenReturn(driverName);
-
-        File mockFile = mock(File.class);
-        when(mockFile.exists()).thenReturn(true);
-        when(mockFile.getAbsolutePath()).thenReturn(path + "/" + driverName);
-
-        try (var mockedFile = mockStatic(File.class)) {
-            mockedFile.when(() -> new File(path, driverName)).thenReturn(mockFile);
-            
-            String result = fileManager.verifyDriverExists(path, browser, destination);
-
-            assertEquals(path, result);
-        }
-    }
-
-    @Test
-    void testVerifyDriverExists_InParentFolder() throws IOException {
-        String path = "C:/drivers";
-        String browser = "firefox";
-        String destination = "C:/destination";
-        String driverName = "geckodriver.exe";
-
-        when(utilities.getDriverName(browser)).thenReturn(driverName);
-
-        File mockCurrentDir = mock(File.class);
-        when(mockCurrentDir.exists()).thenReturn(false);
-
-        File mockParentDir = mock(File.class);
-        when(mockParentDir.exists()).thenReturn(true);
-        when(mockParentDir.getParent()).thenReturn("C:/");
-
-        try (var mockedFile = mockStatic(File.class)) {
-            mockedFile.when(() -> new File(path, driverName)).thenReturn(mockCurrentDir);
-            mockedFile.when(() -> new File(new File(path).getParent(), driverName)).thenReturn(mockParentDir);
-            
-            String result = fileManager.verifyDriverExists(path, browser, destination);
-
-            assertEquals("C:/", result);
-        }
-    }
-
-    @Test
-    void testVerifyDriverExists_DriverNotFound() {
-        String path = "C:/drivers";
-        String browser = "edge";
-        String destination = "C:/destination";
-        String driverName = "msedgedriver.exe";
-
-        when(utilities.getDriverName(browser)).thenReturn(driverName);
-
-        File mockCurrentDir = mock(File.class);
-        when(mockCurrentDir.exists()).thenReturn(false);
-
-        File mockParentDir = mock(File.class);
-        when(mockParentDir.exists()).thenReturn(false);
-
-        try (var mockedFile = mockStatic(File.class)) {
-            mockedFile.when(() -> new File(path, driverName)).thenReturn(mockCurrentDir);
-            mockedFile.when(() -> new File(new File(path).getParent(), driverName)).thenReturn(mockParentDir);
-            
-            IOException exception = assertThrows(IOException.class, () -> {
-                fileManager.verifyDriverExists(path, browser, destination);
-            });
-
-            assertTrue(exception.getMessage().contains("Driver not found"));
-        }
-    }
-}
-
-
-
-
-import org.junit.jupiter.api.BeforeEach;
+import java.io.*;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.Mockito;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-class DriverManagerTest {
-
-    private DriverManager driverManager;
-
-    @Mock
-    private Utilities utilities;  // ✅ Mocked Utilities class
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        driverManager = new DriverManager(utilities);
-    }
+class BrowserVersionFinderTest {
 
     @Test
-    void testGetDriverPath_PathExists_AndWritable() {
-        String browser = "chrome";
-        String expectedPath = "C:/drivers/chrome";
+    void testGetBrowserVersion_ValidResponse() throws Exception {
+        // Mock the process and output stream
+        Process mockProcess = mock(Process.class);
+        InputStream mockInputStream = new ByteArrayInputStream("Version \n131.234.3445.99 \n".getBytes());
+        BufferedReader mockBufferedReader = new BufferedReader(new InputStreamReader(mockInputStream));
 
-        when(utilities.getDefaultDriverPath(browser)).thenReturn(expectedPath);
-        Path mockPath = Paths.get(expectedPath);
+        // Mock Runtime and Process
+        Runtime mockRuntime = mock(Runtime.class);
+        when(mockRuntime.exec(any(String[].class))).thenReturn(mockProcess);
+        when(mockProcess.getInputStream()).thenReturn(mockInputStream);
 
-        try (var mockedFiles = mockStatic(Files.class)) {
-            mockedFiles.when(() -> Files.exists(mockPath)).thenReturn(true);
-            mockedFiles.when(() -> Files.isDirectory(mockPath)).thenReturn(true);
-            mockedFiles.when(() -> Files.isWritable(mockPath)).thenReturn(true);
-
-            String result = driverManager.getDriverPath(browser);
-
-            assertEquals(expectedPath, result);
+        // Inject the mock runtime
+        Runtime originalRuntime = Runtime.getRuntime();
+        try {
+            Runtime.setRuntime(mockRuntime);
+            String version = BrowserVersionFinder.getBrowserVersion("C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe");
+            assertEquals("131.234.3445.99", version);
+        } finally {
+            Runtime.setRuntime(originalRuntime);
         }
     }
 
     @Test
-    void testGetDriverPath_PathExists_ButReadOnly() {
-        String browser = "firefox";
-        String expectedPath = "C:/drivers/firefox";
-        String fallbackPath = System.getProperty("user.home") + "\\WebDrivers";
+    void testGetBrowserVersion_NoVersionFound() throws Exception {
+        // Mock process returning only "Version" with no actual version data
+        Process mockProcess = mock(Process.class);
+        InputStream mockInputStream = new ByteArrayInputStream("Version\n".getBytes());
+        when(mockProcess.getInputStream()).thenReturn(mockInputStream);
 
-        when(utilities.getDefaultDriverPath(browser)).thenReturn(expectedPath);
-        Path mockPath = Paths.get(expectedPath);
+        Runtime mockRuntime = mock(Runtime.class);
+        when(mockRuntime.exec(any(String[].class))).thenReturn(mockProcess);
 
-        try (var mockedFiles = mockStatic(Files.class)) {
-            mockedFiles.when(() -> Files.exists(mockPath)).thenReturn(true);
-            mockedFiles.when(() -> Files.isDirectory(mockPath)).thenReturn(true);
-            mockedFiles.when(() -> Files.isWritable(mockPath)).thenReturn(false);
-
-            String result = driverManager.getDriverPath(browser);
-
-            assertEquals(fallbackPath, result);
+        Runtime originalRuntime = Runtime.getRuntime();
+        try {
+            Runtime.setRuntime(mockRuntime);
+            String version = BrowserVersionFinder.getBrowserVersion("C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe");
+            assertEquals("Version not found", version);
+        } finally {
+            Runtime.setRuntime(originalRuntime);
         }
     }
 
     @Test
-    void testGetDriverPath_PathDoesNotExist() {
-        String browser = "edge";
-        String expectedPath = "C:/drivers/edge";
-        String fallbackPath = System.getProperty("user.home") + "\\WebDrivers";
+    void testGetBrowserVersion_CommandFailure() throws Exception {
+        // Mock process throwing IOException
+        Runtime mockRuntime = mock(Runtime.class);
+        when(mockRuntime.exec(any(String[].class))).thenThrow(new IOException("Command execution failed"));
 
-        when(utilities.getDefaultDriverPath(browser)).thenReturn(expectedPath);
-        Path mockPath = Paths.get(expectedPath);
-
-        try (var mockedFiles = mockStatic(Files.class)) {
-            mockedFiles.when(() -> Files.exists(mockPath)).thenReturn(false);
-
-            String result = driverManager.getDriverPath(browser);
-
-            assertEquals(fallbackPath, result);
+        Runtime originalRuntime = Runtime.getRuntime();
+        try {
+            Runtime.setRuntime(mockRuntime);
+            String version = BrowserVersionFinder.getBrowserVersion("C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe");
+            assertEquals("Version not found", version);
+        } finally {
+            Runtime.setRuntime(originalRuntime);
         }
-    }
-}
-
-
-
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
-
-class DriverUtilsTest {
-
-    private DriverUtils driverUtils;
-
-    @BeforeEach
-    void setUp() {
-        driverUtils = new DriverUtils();  // ✅ Create a real instance
-    }
-
-    @Test
-    void testGetDriverName_Chrome() {
-        String result = driverUtils.getDriverName("chrome");
-        assertEquals("chromedriver.exe", result);
-    }
-
-    @Test
-    void testGetDriverName_Edge() {
-        String result = driverUtils.getDriverName("edge");
-        assertEquals("msedgedriver.exe", result);
-    }
-
-    @Test
-    void testGetDriverName_UnsupportedBrowser() {
-        String result = driverUtils.getDriverName("firefox");
-        assertEquals("Invalid browser/Not supported", result);
-    }
-
-    @Test
-    void testGetDriverName_NullInput() {
-        String result = driverUtils.getDriverName(null);
-        assertEquals("Invalid browser/Not supported", result);
-    }
-
-    @Test
-    void testGetDriverName_CaseInsensitive() {
-        assertEquals("chromedriver.exe", driverUtils.getDriverName("ChRoMe"));
-        assertEquals("msedgedriver.exe", driverUtils.getDriverName("EDGE"));
-    }
-}
-
-
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-class CommandExecutorTest {
-
-    private CommandExecutor commandExecutor;
-
-    @Mock
-    private Process process;  // ✅ Mocked Process object
-
-    @Mock
-    private InputStream inputStream;  // ✅ Mocked InputStream
-
-    @Mock
-    private InputStreamReader inputStreamReader;  // ✅ Mocked InputStreamReader
-
-    @Mock
-    private BufferedReader bufferedReader;  // ✅ Mocked BufferedReader
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        commandExecutor = new CommandExecutor();
-    }
-
-    @Test
-    void testExecuteCommandAndExtractVersion_Success() throws Exception {
-        String command = "java -version";
-        String expectedVersion = "11.0.12";
-
-        // ✅ Mock `Runtime.getRuntime().exec(command)`
-        try (var mockedRuntime = mockStatic(Runtime.class)) {
-            Runtime runtime = mock(Runtime.class);
-            mockedRuntime.when(Runtime::getRuntime).thenReturn(runtime);
-            when(runtime.exec(command)).thenReturn(process);
-
-            // ✅ Mock `process.getInputStream()`
-            when(process.getInputStream()).thenReturn(inputStream);
-            when(inputStreamReader.read()).thenReturn(-1);  // Simulate end of stream
-
-            // ✅ Mock `bufferedReader.readLine()`
-            when(bufferedReader.readLine()).thenReturn("java version \"11.0.12\"", null);
-
-            // ✅ Call the method
-            String result = commandExecutor.executeCommandAndExtractVersion(command);
-
-            assertEquals(expectedVersion, result);
-        }
-    }
-
-    @Test
-    void testExecuteCommandAndExtractVersion_NoVersionFound() throws Exception {
-        String command = "some-command";
-
-        try (var mockedRuntime = mockStatic(Runtime.class)) {
-            Runtime runtime = mock(Runtime.class);
-            mockedRuntime.when(Runtime::getRuntime).thenReturn(runtime);
-            when(runtime.exec(command)).thenReturn(process);
-
-            when(process.getInputStream()).thenReturn(inputStream);
-            when(bufferedReader.readLine()).thenReturn("some output", null);
-
-            String result = commandExecutor.executeCommandAndExtractVersion(command);
-
-            assertNull(result);
-        }
-    }
-
-    @Test
-    void testExecuteCommandAndExtractVersion_ThrowsException() throws Exception {
-        String command = "invalid-command";
-
-        try (var mockedRuntime = mockStatic(Runtime.class)) {
-            Runtime runtime = mock(Runtime.class);
-            mockedRuntime.when(Runtime::getRuntime).thenReturn(runtime);
-            when(runtime.exec(command)).thenThrow(new RuntimeException("Command execution failed"));
-
-            assertThrows(RuntimeException.class, () -> commandExecutor.executeCommandAndExtractVersion(command));
-        }
-    }
-}
-
-
-import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.Mockito.*;
-
-public class CommandExecutorTest {
-
-    private final CommandExecutor commandExecutor = new CommandExecutor();
-    private final Process process = mock(Process.class);
-
-    @Test
-    void testExecuteCommandAndExtractVersion_Success() throws Exception {
-        String command = "java -version";
-        String expectedVersion = "11.0.12";
-
-        // ✅ Mock `Runtime.getRuntime().exec(command)`
-        try (MockedStatic<Runtime> mockedRuntime = mockStatic(Runtime.class)) {
-            Runtime runtime = mock(Runtime.class);
-            mockedRuntime.when(Runtime::getRuntime).thenReturn(runtime);
-            when(runtime.exec(command)).thenReturn(process);
-
-            // ✅ Provide simulated output for the process
-            String simulatedOutput = "java version \"11.0.12\"\n";  // ✅ Ensure newline for `readLine()`
-            InputStream inputStream = new ByteArrayInputStream(simulatedOutput.getBytes(StandardCharsets.UTF_8));
-            when(process.getInputStream()).thenReturn(inputStream);
-
-            // ✅ Mock `process.waitFor()`
-            when(process.waitFor()).thenReturn(0);
-
-            // Debug: Print simulated output
-            System.out.println("Simulated Output: " + simulatedOutput);
-
-            // ✅ Call the method
-            String result = commandExecutor.executeCommandAndExtractVersion(command);
-
-            // Debug: Print extracted version
-            System.out.println("Extracted Version: " + result);
-
-            assertEquals(expectedVersion, result);
-        }
-    }
-
-    @Test
-    void testExecuteCommandAndExtractVersion_NoVersionFound() throws Exception {
-        String command = "some-command";
-
-        try (MockedStatic<Runtime> mockedRuntime = mockStatic(Runtime.class)) {
-            Runtime runtime = mock(Runtime.class);
-            mockedRuntime.when(Runtime::getRuntime).thenReturn(runtime);
-            when(runtime.exec(command)).thenReturn(process);
-
-            // ✅ Provide an output that does NOT contain "version"
-            String simulatedOutput = "some output without version\n";
-            InputStream inputStream = new ByteArrayInputStream(simulatedOutput.getBytes(StandardCharsets.UTF_8));
-            when(process.getInputStream()).thenReturn(inputStream);
-
-            when(process.waitFor()).thenReturn(0);
-
-            // Debug: Print simulated output
-            System.out.println("Simulated Output: " + simulatedOutput);
-
-            String result = commandExecutor.executeCommandAndExtractVersion(command);
-
-            // Debug: Print extracted version
-            System.out.println("Extracted Version: " + result);
-
-            assertNull(result);
-        }
-    }
-}
-
-
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
-import java.nio.file.Paths;
-
-import static org.mockito.Mockito.*;
-
-class DriverDownloaderTest {
-
-    private DriverDownloader driverDownloader;
-
-    @Mock
-    private FileManagerUtility fileManagerUtility;
-
-    @Mock
-    private ZipExtractor zipExtractor;
-
-    @Mock
-    private Config config;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        driverDownloader = new DriverDownloader(fileManagerUtility, zipExtractor, config);
-    }
-
-    @Test
-    void testDownloadDriver_Success() throws Exception {
-        String browser = "chrome";
-        String uri = "http://example.com/chromedriver.zip";
-        String driverPath = "/drivers/chrome";
-        String zipFilePath = "/tmp/chromedriver.zip";
-        String extractedFolder = "/tmp/chromedriver-extracted";
-
-        when(config.DOWNLOAD_DIRECTORY).thenReturn("/tmp");
-        when(fileManagerUtility.getDriverPath(browser)).thenReturn(driverPath);
-        when(fileManagerUtility.downloadFile(uri, config.DOWNLOAD_DIRECTORY)).thenReturn(zipFilePath);
-        when(zipExtractor.unzipFile(zipFilePath, config.DOWNLOAD_DIRECTORY)).thenReturn(extractedFolder);
-
-        // Mock folder copy
-        doNothing().when(fileManagerUtility).copyFolder(Paths.get(extractedFolder), Paths.get(driverPath));
-
-        // ✅ Call method
-        driverDownloader.downloadDriver(browser, uri);
-
-        // ✅ Verify interactions
-        verify(fileManagerUtility).getDriverPath(browser);
-        verify(fileManagerUtility).downloadFile(uri, config.DOWNLOAD_DIRECTORY);
-        verify(zipExtractor).unzipFile(zipFilePath, config.DOWNLOAD_DIRECTORY);
-        verify(fileManagerUtility).copyFolder(Paths.get(extractedFolder), Paths.get(driverPath));
-    }
-
-    @Test
-    void testDownloadDriver_ExceptionHandling() throws Exception {
-        String browser = "edge";
-        String uri = "http://example.com/edgedriver.zip";
-
-        when(config.DOWNLOAD_DIRECTORY).thenReturn("/tmp");
-        when(fileManagerUtility.getDriverPath(browser)).thenReturn("/drivers/edge");
-        when(fileManagerUtility.downloadFile(uri, config.DOWNLOAD_DIRECTORY))
-            .thenThrow(new RuntimeException("Download failed"));
-
-        // ✅ Call method (should not throw)
-        driverDownloader.downloadDriver(browser, uri);
-
-        // ✅ Verify `getDriverPath()` was called
-        verify(fileManagerUtility).getDriverPath(browser);
-
-        // ✅ Verify `downloadFile()` was called but failed
-        verify(fileManagerUtility).downloadFile(uri, config.DOWNLOAD_DIRECTORY);
-
-        // ✅ Verify `unzipFile()` and `copyFolder()` were NOT called due to failure
-        verify(zipExtractor, never()).unzipFile(anyString(), anyString());
-        verify(fileManagerUtility, never()).copyFolder(any(), any());
     }
 }
