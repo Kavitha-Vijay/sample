@@ -31,3 +31,66 @@ public class ChromeVersionChecker {
         return matcher.find() ? matcher.group(1) : "";
     }
 }
+
+
+
+
+
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
+public class EdgeVersionChecker {
+
+    public static void main(String[] args) {
+        try {
+            // Command to get Edge version
+            String command = "microsoft-edge --version";
+
+            // Execute the command
+            Process process = Runtime.getRuntime().exec(command);
+
+            // Read the output
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String output = reader.readLine();
+
+            // Wait for the process to complete
+            process.waitFor();
+
+            // Extract the version number
+            String version = extractVersion(output);
+
+            if (version != null) {
+                System.out.println("Microsoft Edge Version: " + version);
+            } else {
+                System.out.println("Failed to extract Edge version.");
+            }
+
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Extracts the version number from the command output.
+     *
+     * @param output The command output (e.g., "Microsoft Edge 117.0.2045.47").
+     * @return The version number (e.g., "117.0.2045.47"), or null if not found.
+     */
+    private static String extractVersion(String output) {
+        if (output == null || output.isEmpty()) {
+            return null;
+        }
+
+        // Extract the version using regex
+        String[] parts = output.split(" ");
+        for (String part : parts) {
+            if (part.matches("\\d+(\\.\\d+)+")) { // Matches version numbers like "117.0.2045.47"
+                return part;
+            }
+        }
+
+        return null;
+    }
+}
