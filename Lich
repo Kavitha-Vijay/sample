@@ -1,0 +1,33 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class ChromeVersionChecker {
+    public static void main(String[] args) {
+        String command = "google-chrome --version"; // For Debian-based systems
+        // Use "chromium --version" if Chromium is installed instead
+
+        try {
+            Process process = Runtime.getRuntime().exec(command);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String version = extractVersion(line);
+                if (!version.isEmpty()) {
+                    System.out.println(version);
+                }
+            }
+            process.waitFor();
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static String extractVersion(String input) {
+        Pattern pattern = Pattern.compile("(\\d+\\.\\d+\\.\\d+\\.\\d+)");
+        Matcher matcher = pattern.matcher(input);
+        return matcher.find() ? matcher.group(1) : "";
+    }
+}
