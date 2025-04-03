@@ -1,0 +1,32 @@
+# Use the official Ubuntu image as the base
+FROM ubuntu:latest
+
+# Set environment variables to avoid interactive prompts during package installations
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    curl \
+    apt-transport-https \
+    software-properties-common
+
+# Add Microsoft package repository and install .NET 8 SDK
+RUN wget https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb -O packages-microsoft-prod.deb && \
+    dpkg -i packages-microsoft-prod.deb && \
+    rm packages-microsoft-prod.deb && \
+    apt-get update && \
+    apt-get install -y dotnet-sdk-8.0 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set the working directory
+WORKDIR /app
+
+# Copy application files (if you have an app to run)
+COPY . .
+
+# Expose the port if running a web app
+EXPOSE 5000
+
+# Set the entry point for the container
+CMD [ "dotnet", "--version" ]
