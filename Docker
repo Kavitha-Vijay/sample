@@ -30,3 +30,30 @@ EXPOSE 5000
 
 # Set the entry point for the container
 CMD [ "dotnet", "--version" ]
+
+
+
+
+
+# Use Ubuntu as the base image
+FROM ubuntu:latest
+
+# Set environment variables to avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Set working directory
+WORKDIR /app
+
+# Download and install the .NET SDK .deb package from the internal repo
+RUN wget http://your-internal-repo/path-to-dotnet-sdk-8.0.deb -O dotnet-sdk-8.0.deb && \
+    dpkg -i dotnet-sdk-8.0.deb || apt-get install -f -y && \
+    rm dotnet-sdk-8.0.deb
+
+# Copy application files (if needed)
+COPY . .
+
+# Expose a port if running a web app
+EXPOSE 5000
+
+# Set entry point to verify installation
+CMD [ "dotnet", "--version" ]
