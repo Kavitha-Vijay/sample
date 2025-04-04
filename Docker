@@ -1,3 +1,42 @@
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /app
+
+# Install basic tools
+RUN apt-get update && apt-get install -y wget curl
+
+# Download .deb packages from internal repo
+ENV BASE_URL=http://internal.repo.local/packages
+
+RUN wget $BASE_URL/dotnet-host-8.0.0.deb && \
+    wget $BASE_URL/dotnet-runtime-8.0.0.deb && \
+    wget $BASE_URL/aspnetcore-runtime-8.0.0.deb && \
+    wget $BASE_URL/dotnet-sdk-8.0.100.deb
+
+# Install in proper order
+RUN dpkg -i dotnet-host-8.0.0.deb || true
+RUN dpkg -i dotnet-runtime-8.0.0.deb || true
+RUN dpkg -i aspnetcore-runtime-8.0.0.deb || true
+RUN dpkg -i dotnet-sdk-8.0.100.deb || true
+
+# Fix missing dependencies
+RUN apt-get install -f -y
+
+# Clean up .deb files
+RUN rm -f *.deb
+
+# Copy your test project and restore
+COPY . .
+RUN dotnet restore
+
+# Run tests
+CMD ["dotnet", "test", "--logger:console"]
+
+
+
+
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
