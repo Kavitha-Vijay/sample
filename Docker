@@ -1,3 +1,46 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    wget curl gnupg unzip \
+    chromium-browser \
+    libnss3 libxss1 libappindicator3-1 libasound2 \
+    xvfb
+
+# Install ASP.NET Core Runtime from internal repo
+COPY aspnetcore-runtime-8.0.deb .
+RUN dpkg -i aspnetcore-runtime-8.0.deb || (apt-get install -f -y && dpkg -i aspnetcore-runtime-8.0.deb)
+RUN rm aspnetcore-runtime-8.0.deb
+
+# Install .NET SDK from internal repo
+COPY dotnet-sdk-8.0.deb .
+RUN dpkg -i dotnet-sdk-8.0.deb || (apt-get install -f -y && dpkg -i dotnet-sdk-8.0.deb)
+RUN rm dotnet-sdk-8.0.deb
+
+# Install ChromeDriver (match Chromium version if needed)
+RUN wget -O chromedriver.zip https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip && \
+    unzip chromedriver.zip && \
+    mv chromedriver /usr/local/bin/ && \
+    chmod +x /usr/local/bin/chromedriver && \
+    rm chromedriver.zip
+
+# Copy test project and restore
+COPY . .
+RUN dotnet restore
+
+# Run tests (headless recommended for CI)
+CMD ["dotnet", "test", "--logger:console"]
+
+
+
+
+
+
+
 # Use the official Ubuntu image as the base
 FROM ubuntu:latest
 
