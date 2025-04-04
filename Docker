@@ -1,6 +1,57 @@
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    wget curl unzip gnupg \
+    chromium-browser \
+    libnss3 libxss1 libappindicator3-1 libasound2 \
+    xvfb
+
+# Copy all required .deb packages from internal repo
+COPY dotnet-host-8.0*.deb dotnet-runtime-8.0*.deb aspnetcore-runtime-8.0*.deb dotnet-sdk-8.0*.deb ./
+
+# Install packages in dependency order
+RUN dpkg -i dotnet-host-8.0*.deb || true
+RUN dpkg -i dotnet-runtime-8.0*.deb || true
+RUN dpkg -i aspnetcore-runtime-8.0*.deb || true
+RUN dpkg -i dotnet-sdk-8.0*.deb || true
+
+# Fix broken dependencies if any
+RUN apt-get install -f -y
+
+# Clean up
+RUN rm -f *.deb
+
+# Install ChromeDriver (match version with Chromium)
+RUN wget -O chromedriver.zip https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip && \
+    unzip chromedriver.zip && \
+    mv chromedriver /usr/local/bin/ && \
+    chmod +x /usr/local/bin/chromedriver && \
+    rm chromedriver.zip
+
+# Copy your test project
+COPY . .
+
+# Restore dependencies
+RUN dotnet restore
+
+# Run tests
+CMD ["dotnet", "test", "--logger:console"]
+
+
+_--
+
+
+
+
+
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
