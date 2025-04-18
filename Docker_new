@@ -1,0 +1,33 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+
+# Set working directory
+WORKDIR /app
+
+# Copy project files
+COPY . .
+
+# Install dependencies for Playwright headless browsers
+RUN apt-get update && apt-get install -y \
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
+# Restore, build, and install Playwright
+RUN dotnet restore
+RUN dotnet build --configuration Release
+RUN dotnet tool install --global Microsoft.Playwright.CLI
+ENV PATH="$PATH:/root/.dotnet/tools"
+RUN playwright install --with-deps
+
+# Default test command
+CMD ["dotnet", "test", "--logger:trx"]
