@@ -1,0 +1,54 @@
+using NUnit.Framework;
+using Microsoft.Playwright;
+using System;
+using System.IO;
+using System.Threading.Tasks;
+
+namespace PlaywrightTest
+{
+    [TestFixture]
+    public class BrowserTests
+    {
+        private IPlaywright _playwright;
+        private IBrowser _browser;
+
+        [OneTimeSetUp]
+        public async Task SetUp()
+        {
+            var chromePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+
+            Console.WriteLine($"Checking if Chrome exists: {File.Exists(chromePath)}");
+
+            if (!File.Exists(chromePath))
+            {
+                throw new FileNotFoundException("Chrome not found at path", chromePath);
+            }
+
+            _playwright = await Playwright.CreateAsync();
+            _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+            {
+                ExecutablePath = chromePath,
+                Headless = true
+            });
+        }
+
+        [OneTimeTearDown]
+        public async Task TearDown()
+        {
+            await _browser?.CloseAsync();
+            _playwright?.Dispose();
+        }
+
+        [Test]
+        public async Task ShouldOpenPlaywrightSite()
+        {
+            var context = await _browser.NewContextAsync();
+            var page = await context.NewPageAsync();
+
+            await page.GotoAsync("https://playwright.dev");
+            var title = await page.TitleAsync();
+
+            Assert.That(title, Does.Contain("Playwright"));
+        }
+    }
+}
