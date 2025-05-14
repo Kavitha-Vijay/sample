@@ -1,14 +1,52 @@
-var ltOptions = new Dictionary<string, object>
-{
-    ["user"] = "<YOUR_LAMBDATEST_USERNAME>",
-    ["accessKey"] = "<YOUR_LAMBDATEST_ACCESS_KEY>",
-    ["platformName"] = "Linux",
-    ["browserName"] = "Chrome",
-    ["browserVersion"] = "latest",
-    ["project"] = "My C# Project",
-    ["name"] = "My Test on LambdaTest",
-    ["selenium_version"] = "4.0.0",
-};
+using OpenQA.Selenium;
+using OpenQA.Selenium.Remote;
+using OpenQA.Selenium.Chrome;
 
-var options = new ChromeOptions();
-options.AddAdditionalOption("LT:Options", ltOptions);
+class Program
+{
+    static void Main(string[] args)
+    {
+        string username = Environment.GetEnvironmentVariable("LT_USERNAME") ?? "<your-username>";
+        string accessKey = Environment.GetEnvironmentVariable("LT_ACCESS_KEY") ?? "<your-access-key>";
+
+        var ltOptions = new Dictionary<string, object>
+        {
+            ["user"] = username,
+            ["accessKey"] = accessKey,
+            ["platformName"] = "Linux",
+            ["browserName"] = "Chrome",
+            ["browserVersion"] = "latest",
+            ["project"] = "Demo C# Project",
+            ["name"] = "LambdaTest Chrome Run",
+            ["selenium_version"] = "4.0.0",
+        };
+
+        var options = new ChromeOptions();
+        options.AddAdditionalOption("LT:Options", ltOptions);
+
+        var driver = new RemoteWebDriver(
+            new Uri("https://hub.lambdatest.com/wd/hub"), options
+        );
+
+        try
+        {
+            driver.Navigate().GoToUrl("https://example.com");
+            Console.WriteLine("Title: " + driver.Title);
+        }
+        finally
+        {
+            driver.Quit();
+        }
+    }
+}
+
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Selenium.WebDriver" Version="4.20.0" />
+    <PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="122.0.6261.11100" />
+  </ItemGroup>
+</Project>
