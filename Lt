@@ -1,0 +1,14 @@
+var ltOptions = new Dictionary<string, object>
+{
+    ["user"] = "<YOUR_LAMBDATEST_USERNAME>",
+    ["accessKey"] = "<YOUR_LAMBDATEST_ACCESS_KEY>",
+    ["platformName"] = "Linux",
+    ["browserName"] = "Chrome",
+    ["browserVersion"] = "latest",
+    ["project"] = "My C# Project",
+    ["name"] = "My Test on LambdaTest",
+    ["selenium_version"] = "4.0.0",
+};
+
+var options = new ChromeOptions();
+options.AddAdditionalOption("LT:Options", ltOptions);
