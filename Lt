@@ -1,3 +1,68 @@
+using System;
+using System.Collections.Generic;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Remote;
+using OpenQA.Selenium.Chrome;
+
+class Program
+{
+    static void Main()
+    {
+        string username = Environment.GetEnvironmentVariable("LT_USERNAME");
+        string accessKey = Environment.GetEnvironmentVariable("LT_ACCESS_KEY");
+        string gridUrl = "https://<your-private-url>.lambdatest.com/wd/hub"; // Replace this
+
+        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(accessKey))
+        {
+            Console.WriteLine("[ERROR] Username or Access Key is missing");
+            return;
+        }
+
+        Console.WriteLine("[DEBUG] Username: " + username);
+        Console.WriteLine("[DEBUG] AccessKey length: " + accessKey.Length);
+        Console.WriteLine("[DEBUG] Grid URL: " + gridUrl);
+
+        // Build LT Options
+        var ltOptions = new Dictionary<string, object>
+        {
+            { "user", username },
+            { "accessKey", accessKey },
+            { "build", "PrivateGridBuild" },
+            { "name", "Private Grid Test" },
+            { "platformName", "Linux" },
+            { "selenium_version", "4.0.0" }
+        };
+
+        var options = new ChromeOptions();
+        options.AddAdditionalOption("LT:Options", ltOptions);
+        options.PlatformName = "Linux";
+        options.BrowserVersion = "latest";
+
+        IWebDriver driver = null;
+
+        try
+        {
+            Console.WriteLine("[INFO] Creating RemoteWebDriver...");
+            driver = new RemoteWebDriver(new Uri(gridUrl), options);
+            Console.WriteLine("[INFO] WebDriver created.");
+
+            driver.Navigate().GoToUrl("https://example.com");
+            Console.WriteLine("[SUCCESS] Title: " + driver.Title);
+        }
+        catch (WebDriverException ex)
+        {
+            Console.WriteLine("[ERROR] WebDriver failed: " + ex.Message);
+        }
+        finally
+        {
+            driver?.Quit();
+        }
+    }
+}
+
+
+
+
 
 using System;
 using System.Collections.Generic;
