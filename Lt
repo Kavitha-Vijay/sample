@@ -1,3 +1,25 @@
+var ltOptions = new Dictionary<string, object>
+{
+    ["user"] = Environment.GetEnvironmentVariable("LT_USERNAME"),
+    ["accessKey"] = Environment.GetEnvironmentVariable("LT_ACCESS_KEY"),
+    ["build"] = "LambdaTestBuild",
+    ["name"] = "Access Validation Test"
+};
+
+var options = new ChromeOptions
+{
+    PlatformName = "Linux",
+    BrowserVersion = "latest"
+};
+
+options.AddAdditionalOption("LT:Options", ltOptions);
+
+var driver = new RemoteWebDriver(
+    new Uri("https://hub.lambdatest.com/wd/hub"), options);
+
+
+
+
 using OpenQA.Selenium;
 using OpenQA.Selenium.Remote;
 using OpenQA.Selenium.Chrome;
