@@ -1,3 +1,59 @@
+
+using System;
+using System.Collections.Generic;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Remote;
+using OpenQA.Selenium.Chrome;
+
+class LambdaTestPrivateGrid
+{
+    static void Main()
+    {
+        string username = Environment.GetEnvironmentVariable("LT_USERNAME");
+        string accessKey = Environment.GetEnvironmentVariable("LT_ACCESS_KEY");
+        string gridUrl = "https://<your-private-url>.lambdatest.com/wd/hub";
+
+        var ltOptions = new Dictionary<string, object>
+        {
+            { "user", username },
+            { "accessKey", accessKey },
+            { "build", "Private Grid Build" },
+            { "name", "Private Grid Test" },
+            { "platformName", "Linux" }
+        };
+
+        var options = new ChromeOptions();
+        options.AddAdditionalOption("LT:Options", ltOptions);
+        options.PlatformName = "Linux";
+        options.BrowserVersion = "latest";
+
+        IWebDriver driver = null;
+
+        try
+        {
+            driver = new RemoteWebDriver(new Uri(gridUrl), options);
+            driver.Navigate().GoToUrl("https://example.com");
+            Console.WriteLine("Page title is: " + driver.Title);
+        }
+        catch (WebDriverException wde)
+        {
+            Console.WriteLine("WebDriver error: " + wde.Message);
+        }
+        finally
+        {
+            driver?.Quit();
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
 using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
