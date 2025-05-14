@@ -11,42 +11,32 @@ class Program
 
         var ltOptions = new Dictionary<string, object>
         {
-            ["user"] = username,
-            ["accessKey"] = accessKey,
-            ["platformName"] = "Linux",
-            ["browserName"] = "Chrome",
-            ["browserVersion"] = "latest",
-            ["project"] = "Demo C# Project",
-            ["name"] = "LambdaTest Chrome Run",
-            ["selenium_version"] = "4.0.0",
+            { "user", username },
+            { "accessKey", accessKey },
+            { "build", "C# Selenium Build" },
+            { "project", "C# LambdaTest Demo" },
+            { "name", "Sample LambdaTest Test" },
+            { "platformName", "Windows 11" },
+            { "browserName", "Chrome" },
+            { "browserVersion", "latest" },
+            { "selenium_version", "4.20.0" }
         };
 
         var options = new ChromeOptions();
         options.AddAdditionalOption("LT:Options", ltOptions);
 
-        var driver = new RemoteWebDriver(
-            new Uri("https://hub.lambdatest.com/wd/hub"), options
-        );
-
         try
         {
+            using var driver = new RemoteWebDriver(
+                new Uri("https://hub.lambdatest.com/wd/hub"), options
+            );
+
             driver.Navigate().GoToUrl("https://example.com");
             Console.WriteLine("Title: " + driver.Title);
         }
-        finally
+        catch (WebDriverException ex)
         {
-            driver.Quit();
+            Console.WriteLine("WebDriver error: " + ex.Message);
         }
     }
 }
-
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-  </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="Selenium.WebDriver" Version="4.20.0" />
-    <PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="122.0.6261.11100" />
-  </ItemGroup>
-</Project>
