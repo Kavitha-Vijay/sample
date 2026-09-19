@@ -1,1 +1,66 @@
+import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import java.nio.file.*;
+import java.time.Duration;
+import java.util.*;
+import java.util.regex.*;
 
+public class LocatorValidator {
+  // page class name -> URL of that page
+  static final Map<String, String> PAGES = Map.of(
+      "LoginPage", "https://your-app/login",
+      "OrdersPage", "https://your-app/orders");
+
+  static final Pattern BY = Pattern.compile(
+      "By\\.(id|name|xpath|cssSelector|className|linkText|tagName)\\(\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*\\)");
+
+  static By toBy(String t, String v) {
+    return switch (t) {
+      case "id" -> By.id(v);
+      case "name" -> By.name(v);
+      case "xpath" -> By.xpath(v);
+      case "cssSelector" -> By.cssSelector(v);
+      case "className" -> By.className(v);
+      case "linkText" -> By.linkText(v);
+      default -> By.tagName(v);
+    };
+  }
+
+  public static void main(String[] args) throws Exception {
+    WebDriver d = new ChromeDriver();
+    // TODO: add your login steps here
+    Files.createDirectories(Path.of("html"));
+    StringBuilder report = new StringBuilder();
+
+    List<Path> files;
+    try (var s = Files.walk(Path.of("src/test/java"))) {
+      files = s.filter(p -> p.toString().endsWith(".java")).toList();
+    }
+    for (Path f : files) {
+      String page = f.getFileName().toString().replace(".java", "");
+      String url = PAGES.get(page);
+      if (url == null) continue;
+
+      d.get(url);
+      new WebDriverWait(d, Duration.ofSeconds(10)).until(x ->
+          ((JavascriptExecutor) x).executeScript("return document.readyState").equals("complete"));
+      Files.writeString(Path.of("html/" + page + ".html"), d.getPageSource());
+
+      Matcher m = BY.matcher(Files.readString(f));
+      while (m.find()) {
+        String val = m.group(2).replace("\\\"", "\"");
+        List<WebElement> els = d.findElements(toBy(m.group(1), val));
+        String status = els.isEmpty() ? "MISSING"
+            : els.size() > 1 ? "MULTIPLE(" + els.size() + ")"
+            : !els.get(0).isDisplayed() ? "HIDDEN" : "OK";
+        System.out.printf("[%-10s] %s: %s = %s%n", status, page, m.group(1), val);
+        if (!status.equals("OK"))
+          report.append(page).append(" | ").append(m.group(1)).append(" | ")
+                .append(val).append(" | ").append(status).append("\n");
+      }
+    }
+    Files.writeString(Path.of("broken.txt"), report.toString());
+    d.quit();
+  }
+}
